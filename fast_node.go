@@ -1,6 +1,7 @@
 package iavl
 
 import (
+	"github.com/cosmos/iavl/internal/encoding"
 	"github.com/pkg/errors"
 )
 
@@ -25,13 +26,13 @@ func NewFastNode(key []byte, value []byte, version int64) *FastNode {
 
 // DeserializeFastNode constructs an *FastNode from an encoded byte slice.
 func DeserializeFastNode(buf []byte) (*FastNode, error) {
-	val, n, cause := decodeBytes(buf)
+	val, n, cause := encoding.DecodeBytes(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.value")
 	}
 	buf = buf[n:]
 
-	ver, _, cause := decodeVarint(buf)
+	ver, _, cause := encoding.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.version")
 	}
