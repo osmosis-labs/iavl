@@ -109,7 +109,7 @@ func (tree *MutableTree) WorkingHash() []byte {
 }
 
 // String returns a string representation of the tree.
-func (tree *MutableTree) String() string {
+func (tree *MutableTree) String() (string, error) {
 	return tree.ndb.String()
 }
 

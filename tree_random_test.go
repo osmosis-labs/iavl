@@ -353,9 +353,11 @@ func assertEmptyDatabase(t *testing.T, tree *MutableTree) {
 // Checks that the tree has the given number of orphan nodes.
 func assertOrphans(t *testing.T, tree *MutableTree, expected int) {
 	count := 0
-	tree.ndb.traverseOrphans(func(k, v []byte) {
+	err := tree.ndb.traverseOrphans(func(k, v []byte) error {
 		count++
+		return nil
 	})
+	require.Nil(t, err)
 	require.EqualValues(t, expected, count, "Expected %v orphans, got %v", expected, count)
 }
 
