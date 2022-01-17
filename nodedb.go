@@ -322,7 +322,7 @@ func (ndb *nodeDB) DeleteVersion(version int64, checkLatestVersion bool) error {
 		}
 		return nil
 	})
-	return nil
+	return err
 }
 
 // DeleteVersionsFrom permanently deletes all tree versions from the given version upwards.

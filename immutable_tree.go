@@ -220,7 +220,14 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped
 
 	if t.version == t.ndb.getLatestVersion() {
 		stopped, err := t.ndb.traverseFastNodesWithStop(func(k, v []byte) (bool, error) {
-			return fn(k, v), nil
+
+			fastNode, err := DeserializeFastNode(v)
+
+			if err != nil {
+				panic(err)
+			}
+
+			return fn(fastNode.key, fastNode.value), nil
 		})
 
 		if err != nil {

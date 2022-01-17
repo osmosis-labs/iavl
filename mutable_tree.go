@@ -205,7 +205,13 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 			if diskKeyStr < nextUnsavedKey {
 				// disk node is next
 
-				if fn(itr.Key(), itr.Value()) {
+				fastNode, err := DeserializeFastNode(itr.Value())
+
+				if err != nil {
+					panic(err)
+				}
+
+				if fn(fastNode.key, fastNode.value) {
 					return true
 				}
 
@@ -237,6 +243,8 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 				return true
 			}
 		}
+
+		return false
 	}
 
 	return t.ImmutableTree.Iterate(fn)
