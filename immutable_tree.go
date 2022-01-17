@@ -211,12 +211,25 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 	return t.root.getByIndex(t, index)
 }
 
-// Iterate iterates over all keys of the tree, in order. The keys and values must not be modified,
+// Iterate iterates over all keys of the tree. The keys and values must not be modified,
 // since they may point to data stored within IAVL.
 func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped bool) {
 	if t.root == nil {
 		return false
 	}
+
+	if t.version == t.ndb.getLatestVersion() {
+		stopped, err := t.ndb.traverseFastNodesWithStop(func(k, v []byte) (bool, error) {
+			return fn(k, v), nil
+		})
+
+		if err != nil {
+			panic(err)
+		}
+
+		return stopped
+	}
+
 	return t.root.traverse(t, true, func(node *Node) bool {
 		if node.height == 0 {
 			return fn(node.key, node.value)

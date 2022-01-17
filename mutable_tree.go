@@ -156,6 +156,92 @@ func (tree *MutableTree) Import(version int64) (*Importer, error) {
 	return newImporter(tree, version)
 }
 
+// Iterate iterates over all keys of the tree. The keys and values must not be modified,
+// since they may point to data stored within IAVL.
+func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped bool) {
+	if t.root == nil {
+		return false
+	}
+
+	if t.version == t.ndb.getLatestVersion() {
+		// We need to ensure that we iterate over saved and unsaved state in order.
+		// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
+		// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in sorted order efficiently.
+
+		unsavedFastNodesToSort := make([]string, 0, len(t.unsavedFastNodeAdditions))
+
+		for _, fastNode := range t.unsavedFastNodeAdditions {
+			unsavedFastNodesToSort = append(unsavedFastNodesToSort, string(fastNode.key))
+		}
+
+		sort.Strings(unsavedFastNodesToSort)
+
+		itr, err := t.ndb.getFastIterator()
+		if err != nil {
+			panic(err)
+		}
+
+		nextUnsavedIdx := 0
+
+		for itr.Valid() && nextUnsavedIdx < len(unsavedFastNodesToSort) {
+			if t.unsavedFastNodeRemovals[string(itr.Key())] != nil {
+				// If next fast node from disk is to be removed, skip it.
+				itr.Next()
+				continue
+			}
+
+			nextUnsavedKey := unsavedFastNodesToSort[nextUnsavedIdx]
+			nextUnsavedNode := t.unsavedFastNodeAdditions[nextUnsavedKey] // O(1)
+
+			diskKeyStr := string(itr.Key())
+
+			if diskKeyStr == nextUnsavedKey {
+				// Unsaved update prevails over saved copy
+				
+				itr.Next() // skip this copy from disk
+				continue
+			}
+
+			if diskKeyStr < nextUnsavedKey {
+				// disk node is next
+
+				if fn(itr.Key(), itr.Value()) {
+					return true
+				}
+
+				itr.Next()
+			} else {
+				// unsaved node is next
+
+				if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
+					return true
+				}
+
+				nextUnsavedIdx++
+			}
+		}
+
+		// if only nodes on disk are left, we can just iterate
+		for itr.Valid() {
+			if fn(itr.Key(), itr.Value()) {
+				return true
+			}
+		}
+
+		// if only unsaved nodes are left, we can just iterate
+		for ; nextUnsavedIdx < len(unsavedFastNodesToSort); nextUnsavedIdx++ {
+			nextUnsavedKey := unsavedFastNodesToSort[nextUnsavedIdx]
+			nextUnsavedNode := t.unsavedFastNodeAdditions[nextUnsavedKey]
+
+			if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
+				return true
+			}
+		}
+	}
+
+	return t.ImmutableTree.Iterate(fn)
+}
+
 func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated bool) {
 	if value == nil {
 		panic(fmt.Sprintf("Attempt to store nil value at key '%s'", key))
