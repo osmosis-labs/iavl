@@ -424,7 +424,7 @@ func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string
 	}
 	
 	count := 0
-	tree.ndb.traverseFastNodes(func(k, v []byte) {
+	err := tree.ndb.traverseFastNodes(func(k, v []byte) error {
 		count += 1
 		fastNode, err := DeserializeFastNode(v)
 		require.Nil(t, err)
@@ -433,8 +433,9 @@ func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string
 
 		require.NotNil(t, mirrorVal)
 		require.Equal(t, []byte(mirrorVal), fastNode.value)
+		return nil
 	})
-
+	require.NoError(t, err)
 	require.Equal(t, len(mirror), count)
 }
 
