@@ -145,12 +145,11 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, nil
 	}
 
-	fastNode, err := DeserializeFastNode(buf)
+	fastNode, err := DeserializeFastNode(key, buf)
 	if err != nil {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
 
-	fastNode.key = key
 	ndb.cacheFastNode(fastNode)
 	return fastNode, nil
 }
@@ -295,8 +294,10 @@ func (ndb *nodeDB) DeleteVersion(version int64, checkLatestVersion bool) error {
 		return err
 	}
 
-	err = ndb.traverseFastNodes(func(key, v []byte) error {
-		fastNode, err := DeserializeFastNode(v)
+	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
+		key := keyWithPrefix[1:]
+
+		fastNode, err := DeserializeFastNode(key, v)
 
 		if err != nil {
 			return err
@@ -312,11 +313,11 @@ func (ndb *nodeDB) DeleteVersion(version int64, checkLatestVersion bool) error {
 			if version + 1 <= ndb.latestVersion {
 				fastNode.versionLastUpdatedAt = version + 1
 				if err = ndb.saveFastNodeUnlocked(fastNode); err != nil {
-					panic(err)
+					return err
 				}
 			} else {
-				if err = ndb.batch.Delete(key); err != nil {
-					panic(err)
+				if err = ndb.batch.Delete(keyWithPrefix); err != nil {
+					return err
 				}
 			}
 		}
@@ -361,17 +362,14 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 
 		if fromVersion >= version {
 			if err = ndb.batch.Delete(key); err != nil {
-				debug("%v\n", err)
 				return err
 			}
 			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
-				debug("%v\n", err)
 				return err
 			}
 			ndb.uncacheNode(hash)
 		} else if toVersion >= version-1 {
 			if err := ndb.batch.Delete(key); err != nil {
-				debug("%v\n", err)
 				return err
 			}
 		}
@@ -395,15 +393,16 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 	}
 
 	// Delete fast node entries
-	err = ndb.traverseFastNodes(func(key, v []byte) error {
-		fastNode, err := DeserializeFastNode(v)
+	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
+		key := keyWithPrefix[1:]
+		fastNode, err := DeserializeFastNode(key, v)
 
 		if err != nil {
 			return err
 		}
 
 		if version <= fastNode.versionLastUpdatedAt {
-			if err = ndb.batch.Delete(key); err != nil {
+			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				debug("%v\n", err)
 				return err
 			}
@@ -484,8 +483,9 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 	})
 
 	// Delete fast node entries
-	err := ndb.traverseFastNodes(func(key, v []byte) error {
-		fastNode, err := DeserializeFastNode(v)
+	err := ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
+		key := keyWithPrefix[1:]
+		fastNode, err := DeserializeFastNode(key, v)
 
 		if err != nil {
 			return err
@@ -496,11 +496,11 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 			if toVersion <= ndb.latestVersion {
 				fastNode.versionLastUpdatedAt = toVersion
 				if err = ndb.saveFastNodeUnlocked(fastNode); err != nil {
-					panic(err)
+					return err
 				}
 			} else {
-				if err = ndb.batch.Delete(key); err != nil {
-					panic(err)
+				if err = ndb.batch.Delete(keyWithPrefix); err != nil {
+					return err
 				}
 			}
 		}
@@ -684,7 +684,7 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 }
 
 // Traverse orphans and return error if any, nil otherwise
-func (ndb *nodeDB) traverseOrphans(fn func(k, v []byte) error) error {
+func (ndb *nodeDB) traverseOrphans(fn func(keyWithPrefix, v []byte) error) error {
 	return ndb.traversePrefix(orphanKeyFormat.Key(), fn)
 }
 
@@ -694,7 +694,7 @@ func (ndb *nodeDB) traverseFastNodes(fn func(k, v []byte) error) error {
 }
 
 // Traverse fast nodes. Returns a flag indicating if traversal was stopped by the callback and error if any, nil otherwise
-func (ndb *nodeDB) traverseFastNodesWithStop(fn func(k, v []byte) (bool, error)) (bool, error) {
+func (ndb *nodeDB) traverseFastNodesWithStop(fn func(keyWithPrefix, v []byte) (bool, error)) (bool, error) {
 	return ndb.traversePrefixWithStop(fastKeyFormat.Key(), fn)
 }
 
@@ -764,11 +764,6 @@ func (ndb *nodeDB) traversePrefixWithStop(prefix []byte, fn func(k, v []byte) (b
 	}
 
 	return false, nil
-}
-
-// Get iterator for prefix and error, if any
-func (ndb *nodeDB) getIteratorForPrefix(prefix []byte) (dbm.Iterator, error) {
-	return dbm.IteratePrefix(ndb.db, prefix)
 }
 
 // Get iterator for fast prefix and error, if any
