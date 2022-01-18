@@ -405,7 +405,6 @@ func TestMutableTree_SetSimple(t *testing.T) {
 	fastNodeAddition := fastNodeAdditions[testKey1]
 	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 }
 
 func TestMutableTree_SetTwoKeys(t *testing.T) {
@@ -441,12 +440,10 @@ func TestMutableTree_SetTwoKeys(t *testing.T) {
 	fastNodeAddition := fastNodeAdditions[testKey1]
 	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 
 	fastNodeAddition = fastNodeAdditions[testKey2]
 	require.Equal(t, []byte(testKey2), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 }
 
 func TestMutableTree_SetOverwrite(t *testing.T) {
@@ -476,7 +473,6 @@ func TestMutableTree_SetOverwrite(t *testing.T) {
 	fastNodeAddition := fastNodeAdditions[testKey1]
 	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 }
 
 func TestMutableTree_SetRemoveSet(t *testing.T) {
@@ -503,7 +499,6 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	fastNodeAddition := fastNodeAdditions[testKey1]
 	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 
 	// Remove
 	removedVal, isRemoved := tree.Remove([]byte(testKey1))
@@ -537,7 +532,6 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	fastNodeAddition = fastNodeAdditions[testKey1]
 	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
 	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
 
 	fastNodeRemovals = tree.GetUnsavedFastNodeRemovals()
 	require.Equal(t, 0, len(fastNodeRemovals))

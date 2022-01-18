@@ -30,7 +30,7 @@ import (
 // the case.
 func Repair013Orphans(db dbm.DB) (uint64, error) {
 	ndb := newNodeDB(db, 0, &Options{Sync: true})
-	version := ndb.getLatestVersion()
+	version := ndb.getLatestSavedVersion()
 	if version == 0 {
 		return 0, errors.New("no versions found")
 	}

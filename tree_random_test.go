@@ -403,7 +403,7 @@ func assertMirror(t *testing.T, tree *MutableTree, mirror map[string]string, ver
 
 // Checks that fast node cache matches live state.
 func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) {
-	if tree.ndb.getLatestVersion() != version {
+	if tree.ndb.getLatestSavedVersion() != version {
 		// The fast node cache check should only be done to the latest version
 		return
 	}
@@ -418,7 +418,7 @@ func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[strin
 
 // Checks that fast nodes on disk match live state.
 func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string]string, version int64) {
-	if tree.ndb.getLatestVersion() != version {
+	if tree.ndb.getLatestSavedVersion() != version {
 		// The fast node disk check should only be done to the latest version
 		return
 	}

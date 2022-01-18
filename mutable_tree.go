@@ -163,7 +163,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 		return false
 	}
 
-	if t.version == t.ndb.getLatestVersion() {
+	if t.version == t.ndb.getLatestSavedVersion() {
 		// We need to ensure that we iterate over saved and unsaved state in order.
 		// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
 		// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in sorted order efficiently.
@@ -262,7 +262,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated
 	}
 
 	if tree.ImmutableTree.root == nil {
-		tree.addUnsavedAddition(key, NewFastNode(key, value, tree.version+1))
+		tree.addUnsavedAddition(key, NewFastNode(key, value))
 		tree.ImmutableTree.root = NewNode(key, value, tree.version+1)
 		return nil, updated
 	}
@@ -278,7 +278,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 	version := tree.version + 1
 
 	if node.isLeaf() {
-		tree.addUnsavedAddition(key,  NewFastNode(key, value, version))
+		tree.addUnsavedAddition(key,  NewFastNode(key, value))
 
 		switch bytes.Compare(key, node.key) {
 		case -1:
@@ -424,7 +424,7 @@ func (tree *MutableTree) Load() (int64, error) {
 // performs a no-op. Otherwise, if the root does not exist, an error will be
 // returned.
 func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
-	latestVersion := tree.ndb.getLatestVersion()
+	latestVersion := tree.ndb.getLatestSavedVersion()
 	if latestVersion < targetVersion {
 		return latestVersion, fmt.Errorf("wanted to load target %d but only found up to %d", targetVersion, latestVersion)
 	}
@@ -567,7 +567,7 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 
 func (tree *MutableTree) createFastNodesFromLatestTree(err error, targetVersion int64, latestVersion int64) error {
 	didInterruptFastNodesRestoration := tree.Iterate(func(key, value []byte) bool {
-		if err = tree.ndb.SaveFastNode(NewFastNode(key, value, tree.version)); err != nil {
+		if err = tree.ndb.SaveFastNode(NewFastNode(key, value)); err != nil {
 			debug("error saving fast node when restoring fast nodes: %v\n", err)
 			return true
 		}
@@ -641,13 +641,30 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) (
 // modified, since it may point to data stored within IAVL. GetVersionedFast utilizes a more performant
 // strategy for retrieving the value than GetVersioned but falls back to regular strategy if fails.
 func (tree *MutableTree) GetVersionedFast(key []byte, version int64) []byte {
-	fastNode, _ := tree.ndb.GetFastNode(key)
-	if fastNode == nil && version == tree.ndb.latestVersion || version > tree.version {
-		return nil
+
+	unsavedFastNode, doesUnsavedExist := tree.unsavedFastNodeAdditions[string(key)]
+
+	if version == tree.ndb.getLatestSavedVersion() + 1 && doesUnsavedExist {
+		return unsavedFastNode.value
 	}
 
-	if  fastNode != nil && fastNode.versionLastUpdatedAt <= version {
-		return fastNode.value
+	if version == tree.ndb.getLatestSavedVersion() {
+		if doesUnsavedExist {
+			// if the node is in the unsaved additions, then it will be updated for the next version (version + 1)
+			return nil
+		}
+		if tree.unsavedFastNodeRemovals[string(key)] != nil {
+			return nil
+		}
+
+		fastNode, _ := tree.ndb.GetFastNode(key)
+		if fastNode == nil && version == tree.ndb.getLatestSavedVersion() || version > tree.version {
+			return nil
+		}
+	
+		if  fastNode != nil {
+			return fastNode.value
+		}
 	}
 
 	_, value := tree.GetVersioned(key, version)

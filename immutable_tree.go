@@ -163,6 +163,11 @@ func (t *ImmutableTree) GetFast(key []byte) []byte {
 		return nil
 	}
 
+	if t.version != t.ndb.getLatestSavedVersion() {
+		_, result := t.root.get(t, key)
+		return result
+	}
+
 	// attempt to get a FastNode directly from db/cache.
 	// if call fails, fall back to the original IAVL logic in place.
 	fastNode, err := t.ndb.GetFastNode(key)
@@ -182,13 +187,6 @@ func (t *ImmutableTree) GetFast(key []byte) []byte {
 		}
 
 		debug("old version with no fast node for key: %X, falling back to regular IAVL logic. Tree version: %d\n", key, t.version)
-		_, result := t.root.get(t, key)
-		return result
-	}
-
-	// cache node is of different version, so read from the current tree
-	if fastNode.versionLastUpdatedAt > t.version {
-		debug("last updated version %d is too new for FastNode where tree is of version %d with key %X, falling back to regular IAVL logic\n", fastNode.versionLastUpdatedAt, t.version, key)
 		_, result := t.root.get(t, key)
 		return result
 	}
@@ -218,7 +216,7 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped
 		return false
 	}
 
-	if t.version == t.ndb.getLatestVersion() {
+	if t.version == t.ndb.getLatestSavedVersion() {
 		stopped, err := t.ndb.traverseFastNodesWithStop(func(keyWithPrefix, v []byte) (bool, error) {
 			key := keyWithPrefix[1:]
 			fastNode, err := DeserializeFastNode(key, v)
