@@ -293,36 +293,6 @@ func (ndb *nodeDB) DeleteVersion(version int64, checkLatestVersion bool) error {
 	if err != nil {
 		return err
 	}
-
-	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
-		key := keyWithPrefix[1:]
-
-		fastNode, err := DeserializeFastNode(key, v)
-
-		if err != nil {
-			return err
-		}
-
-		if checkLatestVersion && version == ndb.latestVersion {
-			// Latest version must not be deleted
-			return nil
-		}
-
-		if fastNode.versionLastUpdatedAt == version {
-			ndb.uncacheFastNode(key)
-			if version + 1 <= ndb.latestVersion {
-				fastNode.versionLastUpdatedAt = version + 1
-				if err = ndb.saveFastNodeUnlocked(fastNode); err != nil {
-					return err
-				}
-			} else {
-				if err = ndb.batch.Delete(keyWithPrefix); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
 	return err
 }
 
@@ -475,34 +445,9 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 	}
 
 	// Delete the version root entries
-	ndb.traverseRange(rootKeyFormat.Key(fromVersion), rootKeyFormat.Key(toVersion), func(k, v []byte) error {
+	err := ndb.traverseRange(rootKeyFormat.Key(fromVersion), rootKeyFormat.Key(toVersion), func(k, v []byte) error {
 		if err := ndb.batch.Delete(k); err != nil {
 			return err
-		}
-		return nil
-	})
-
-	// Delete fast node entries
-	err := ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
-		key := keyWithPrefix[1:]
-		fastNode, err := DeserializeFastNode(key, v)
-
-		if err != nil {
-			return err
-		}
-
-		if fromVersion <= fastNode.versionLastUpdatedAt && fastNode.versionLastUpdatedAt < toVersion {
-			ndb.uncacheFastNode(key)
-			if toVersion <= ndb.latestVersion {
-				fastNode.versionLastUpdatedAt = toVersion
-				if err = ndb.saveFastNodeUnlocked(fastNode); err != nil {
-					return err
-				}
-			} else {
-				if err = ndb.batch.Delete(keyWithPrefix); err != nil {
-					return err
-				}
-			}
 		}
 		return nil
 	})
