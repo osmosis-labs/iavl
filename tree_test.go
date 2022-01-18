@@ -500,42 +500,42 @@ func TestVersionedTree(t *testing.T) {
 	tree.Set([]byte("key1"), []byte("val0"))
 
 	// "key2"
-	val := tree.GetVersionedFast([]byte("key2"), 0)
+	val := tree.GetVersioned([]byte("key2"), 0)
 	require.Nil(val)
 
-	val = tree.GetVersionedFast([]byte("key2"), 1)
+	val = tree.GetVersioned([]byte("key2"), 1)
 	require.Equal("val0", string(val))
 
-	val = tree.GetVersionedFast([]byte("key2"), 2)
+	val = tree.GetVersioned([]byte("key2"), 2)
 	require.Equal("val1", string(val))
 
 	val = tree.GetFast([]byte("key2"))
 	require.Equal("val2", string(val))
 
 	// "key1"
-	val = tree.GetVersionedFast([]byte("key1"), 1)
+	val = tree.GetVersioned([]byte("key1"), 1)
 	require.Equal("val0", string(val))
 
-	val = tree.GetVersionedFast([]byte("key1"), 2)
+	val = tree.GetVersioned([]byte("key1"), 2)
 	require.Equal("val1", string(val))
 
-	val = tree.GetVersionedFast([]byte("key1"), 3)
+	val = tree.GetVersioned([]byte("key1"), 3)
 	require.Nil(val)
 
-	val = tree.GetVersionedFast([]byte("key1"), 4)
+	val = tree.GetVersioned([]byte("key1"), 4)
 	require.Nil(val)
 
 	val = tree.GetFast([]byte("key1"))
 	require.Equal("val0", string(val))
 
 	// "key3"
-	val = tree.GetVersionedFast([]byte("key3"), 0)
+	val = tree.GetVersioned([]byte("key3"), 0)
 	require.Nil(val)
 
-	val = tree.GetVersionedFast([]byte("key3"), 2)
+	val = tree.GetVersioned([]byte("key3"), 2)
 	require.Equal("val1", string(val))
 
-	val = tree.GetVersionedFast([]byte("key3"), 3)
+	val = tree.GetVersioned([]byte("key3"), 3)
 	require.Equal("val1", string(val))
 
 	// Delete a version. After this the keys in that version should not be found.
@@ -556,10 +556,10 @@ func TestVersionedTree(t *testing.T) {
 
 	require.True(len(nodes5) < len(nodes4), "db should have shrunk after delete %d !< %d", len(nodes5), len(nodes4))
 
-	val = tree.GetVersionedFast([]byte("key2"), 2)
+	val = tree.GetVersioned([]byte("key2"), 2)
 	require.Nil(val)
 
-	val = tree.GetVersionedFast([]byte("key3"), 2)
+	val = tree.GetVersioned([]byte("key3"), 2)
 	require.Nil(val)
 
 	// But they should still exist in the latest version.
@@ -572,10 +572,10 @@ func TestVersionedTree(t *testing.T) {
 
 	// Version 1 should still be available.
 
-	val = tree.GetVersionedFast([]byte("key1"), 1)
+	val = tree.GetVersioned([]byte("key1"), 1)
 	require.Equal("val0", string(val))
 
-	val = tree.GetVersionedFast([]byte("key2"), 1)
+	val = tree.GetVersioned([]byte("key2"), 1)
 	require.Equal("val0", string(val))
 }
 
@@ -696,7 +696,7 @@ func TestVersionedTreeSpecialCase(t *testing.T) {
 
 	tree.DeleteVersion(2)
 
-	val := tree.GetVersionedFast([]byte("key2"), 1)
+	val := tree.GetVersioned([]byte("key2"), 1)
 	require.Equal("val0", string(val))
 }
 
@@ -725,7 +725,7 @@ func TestVersionedTreeSpecialCase2(t *testing.T) {
 
 	require.NoError(tree.DeleteVersion(2))
 
-	val := tree.GetVersionedFast([]byte("key2"), 1)
+	val := tree.GetVersioned([]byte("key2"), 1)
 	require.Equal("val0", string(val))
 }
 
@@ -834,7 +834,7 @@ func TestVersionedTreeErrors(t *testing.T) {
 	require.Error(tree.DeleteVersion(1))
 
 	// Trying to get a key from a version which doesn't exist.
-	val := tree.GetVersionedFast([]byte("key"), 404)
+	val := tree.GetVersioned([]byte("key"), 404)
 	require.Nil(val)
 
 	// Same thing with proof. We get an error because a proof couldn't be
@@ -887,7 +887,7 @@ func TestVersionedCheckpoints(t *testing.T) {
 	for i := 1; i <= versions; i++ {
 		if i%versionsPerCheckpoint != 0 {
 			for _, k := range keys[int64(i)] {
-				val := tree.GetVersionedFast(k, int64(i))
+				val := tree.GetVersioned(k, int64(i))
 				require.Nil(val)
 			}
 		}
@@ -897,7 +897,7 @@ func TestVersionedCheckpoints(t *testing.T) {
 	for i := 1; i <= versions; i++ {
 		for _, k := range keys[int64(i)] {
 			if i%versionsPerCheckpoint == 0 {
-				val := tree.GetVersionedFast(k, int64(i))
+				val := tree.GetVersioned(k, int64(i))
 				require.NotEmpty(val)
 			}
 		}
@@ -926,7 +926,7 @@ func TestVersionedCheckpointsSpecialCase(t *testing.T) {
 	// checkpoint, which is version 10.
 	tree.DeleteVersion(1)
 
-	val := tree.GetVersionedFast(key, 2)
+	val := tree.GetVersioned(key, 2)
 	require.NotEmpty(val)
 	require.Equal([]byte("val1"), val)
 }
@@ -970,7 +970,7 @@ func TestVersionedCheckpointsSpecialCase3(t *testing.T) {
 
 	tree.DeleteVersion(2)
 
-	tree.GetVersionedFast([]byte("m"), 1)
+	tree.GetVersioned([]byte("m"), 1)
 }
 
 func TestVersionedCheckpointsSpecialCase4(t *testing.T) {
@@ -990,19 +990,19 @@ func TestVersionedCheckpointsSpecialCase4(t *testing.T) {
 	tree.Set([]byte("X"), []byte("New"))
 	tree.SaveVersion()
 
-	val := tree.GetVersionedFast([]byte("A"), 2)
+	val := tree.GetVersioned([]byte("A"), 2)
 	require.Nil(t, val)
 
-	val = tree.GetVersionedFast([]byte("A"), 1)
+	val = tree.GetVersioned([]byte("A"), 1)
 	require.NotEmpty(t, val)
 
 	tree.DeleteVersion(1)
 	tree.DeleteVersion(2)
 
-	val = tree.GetVersionedFast([]byte("A"), 2)
+	val = tree.GetVersioned([]byte("A"), 2)
 	require.Nil(t, val)
 
-	val = tree.GetVersionedFast([]byte("A"), 1)
+	val = tree.GetVersioned([]byte("A"), 1)
 	require.Nil(t, val)
 }
 
@@ -1021,7 +1021,7 @@ func TestVersionedCheckpointsSpecialCase5(t *testing.T) {
 
 	tree.DeleteVersion(1)
 
-	tree.GetVersionedFast([]byte("R"), 2)
+	tree.GetVersioned([]byte("R"), 2)
 }
 
 func TestVersionedCheckpointsSpecialCase6(t *testing.T) {
@@ -1048,13 +1048,13 @@ func TestVersionedCheckpointsSpecialCase6(t *testing.T) {
 	tree.DeleteVersion(1)
 	tree.DeleteVersion(2)
 
-	tree.GetVersionedFast([]byte("Y"), 1)
-	tree.GetVersionedFast([]byte("7"), 1)
-	tree.GetVersionedFast([]byte("Z"), 1)
-	tree.GetVersionedFast([]byte("6"), 1)
-	tree.GetVersionedFast([]byte("s"), 1)
-	tree.GetVersionedFast([]byte("2"), 1)
-	tree.GetVersionedFast([]byte("4"), 1)
+	tree.GetVersioned([]byte("Y"), 1)
+	tree.GetVersioned([]byte("7"), 1)
+	tree.GetVersioned([]byte("Z"), 1)
+	tree.GetVersioned([]byte("6"), 1)
+	tree.GetVersioned([]byte("s"), 1)
+	tree.GetVersioned([]byte("2"), 1)
+	tree.GetVersioned([]byte("4"), 1)
 }
 
 func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
@@ -1088,7 +1088,7 @@ func TestVersionedCheckpointsSpecialCase7(t *testing.T) {
 
 	tree.DeleteVersion(4)
 
-	tree.GetVersionedFast([]byte("A"), 3)
+	tree.GetVersioned([]byte("A"), 3)
 }
 
 func TestVersionedTreeEfficiency(t *testing.T) {

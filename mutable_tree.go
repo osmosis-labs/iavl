@@ -624,34 +624,25 @@ func (tree *MutableTree) Rollback() {
 
 // GetVersioned gets the value and index at the specified key and version. The returned value must not be
 // modified, since it may point to data stored within IAVL.
-func (tree *MutableTree) GetVersioned(key []byte, version int64) (
-	index int64, value []byte,
-) {
+func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 	if tree.VersionExists(version) {
+		fastNode, _ := tree.ndb.GetFastNode(key)
+		if fastNode == nil && version == tree.ndb.latestVersion {
+			return nil
+		}
+	
+		if  fastNode != nil && fastNode.versionLastUpdatedAt <= version {
+			return fastNode.value
+		}
+
 		t, err := tree.GetImmutable(version)
 		if err != nil {
-			return -1, nil
+			return nil
 		}
-		return t.Get(key)
+		_, value := t.Get(key)
+		return value
 	}
-	return -1, nil
-}
-
-// GetVersionedFast gets the value at the specified key and version. The returned value must not be
-// modified, since it may point to data stored within IAVL. GetVersionedFast utilizes a more performant
-// strategy for retrieving the value than GetVersioned but falls back to regular strategy if fails.
-func (tree *MutableTree) GetVersionedFast(key []byte, version int64) []byte {
-	fastNode, _ := tree.ndb.GetFastNode(key)
-	if fastNode == nil && version == tree.ndb.latestVersion || version > tree.version {
-		return nil
-	}
-
-	if  fastNode != nil && fastNode.versionLastUpdatedAt <= version {
-		return fastNode.value
-	}
-
-	_, value := tree.GetVersioned(key, version)
-	return value
+	return nil
 }
 
 // GetUnsavedFastNodeAdditions returns unsaved FastNodes to add
