@@ -184,7 +184,9 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 		nextUnsavedIdx := 0
 
 		for itr.Valid() && nextUnsavedIdx < len(unsavedFastNodesToSort) {
-			if t.unsavedFastNodeRemovals[string(itr.Key())] != nil {
+			diskKeyStr := string(itr.Key()[1:])
+
+			if t.unsavedFastNodeRemovals[string(diskKeyStr)] != nil {
 				// If next fast node from disk is to be removed, skip it.
 				itr.Next()
 				continue
@@ -193,17 +195,23 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 			nextUnsavedKey := unsavedFastNodesToSort[nextUnsavedIdx]
 			nextUnsavedNode := t.unsavedFastNodeAdditions[nextUnsavedKey] // O(1)
 
-			diskKeyStr := string(itr.Key()[1:])
+			
 
-			if diskKeyStr == nextUnsavedKey {
-				// Unsaved update prevails over saved copy
-				
-				itr.Next() // skip this copy from disk
-				continue
-			}
+			if diskKeyStr >= nextUnsavedKey {
+				// Unsaved node is next
 
-			if diskKeyStr < nextUnsavedKey {
-				// disk node is next
+				if diskKeyStr == nextUnsavedKey {
+					// Unsaved update prevails over saved copy so we skip the copy from disk
+					itr.Next()
+				}
+
+				if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
+					return true
+				}
+
+				nextUnsavedIdx++
+			} else {
+				// Disk node is next
 
 				fastNode, err := DeserializeFastNode([]byte(diskKeyStr), itr.Value())
 
@@ -216,14 +224,6 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 				}
 
 				itr.Next()
-			} else {
-				// unsaved node is next
-
-				if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
-					return true
-				}
-
-				nextUnsavedIdx++
 			}
 		}
 
