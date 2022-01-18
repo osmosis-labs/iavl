@@ -687,6 +687,11 @@ func (ndb *nodeDB) traverseFastNodes(fn func(k, v []byte) error) error {
 	return ndb.traversePrefix(fastKeyFormat.Key(), fn)
 }
 
+// Traverse fast nodes and return error if any, nil otherwise
+func (ndb *nodeDB) traverseFastNodesVersion(version int64, fn func(k, v []byte) error) error {
+	return ndb.traversePrefix(fastKeyFormat.Key(version), fn)
+}
+
 // Traverse fast nodes. Returns a flag indicating if traversal was stopped by the callback and error if any, nil otherwise
 func (ndb *nodeDB) traverseFastNodesWithStop(fn func(keyWithPrefix, v []byte) (bool, error)) (bool, error) {
 	return ndb.traversePrefixWithStop(fastKeyFormat.Key(), fn)
