@@ -415,10 +415,6 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 		return err
 	}
 
-	for curVersion := version; curVersion <= ndb.latestVersion; curVersion++ {
-		ndb.uncacheFastNodesWithVersion(curVersion)
-	}
-
 	return nil
 }
 
@@ -470,8 +466,6 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 		if err != nil {
 			return err
 		}
-
-		ndb.uncacheFastNodesWithVersion(version)
 	}
 
 	// Delete the version root entries
@@ -795,15 +789,6 @@ func (ndb *nodeDB) uncacheFastNode(key []byte) {
 	if elem, ok := ndb.fastNodeCache[string(key)]; ok {
 		ndb.fastNodeCacheQueue.Remove(elem)
 		delete(ndb.fastNodeCache, string(key))
-	}
-}
-
-func (ndb *nodeDB) uncacheFastNodesWithVersion(version int64) {
-	for key, elem := range ndb.fastNodeCache {
-		if elem.Value.(*FastNode).versionLastUpdatedAt == version {
-			ndb.fastNodeCacheQueue.Remove(elem)
-			delete(ndb.fastNodeCache, string(key))
-		}
 	}
 }
 
