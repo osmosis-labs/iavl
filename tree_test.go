@@ -1756,3 +1756,32 @@ func TestLoadVersionForOverwritingCase3(t *testing.T) {
 		require.Equal([]byte{i}, v)
 	}
 }
+
+func TestIterate_ImmutableTree_Version1(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	immutableTree, err := tree.GetImmutable(1)
+	require.NoError(t, err)
+
+	assertImmutableMirrorIterate(t, immutableTree, mirror)
+}
+
+func TestIterate_ImmutableTree_Version2(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	randomizeTreeAndMirror(t, tree, mirror)
+
+	_, _, err = tree.SaveVersion()
+	require.NoError(t, err)
+
+	immutableTree, err := tree.GetImmutable(2)
+	require.NoError(t, err)
+
+	assertImmutableMirrorIterate(t, immutableTree, mirror)
+}

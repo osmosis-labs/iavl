@@ -626,3 +626,40 @@ func TestMutableTree_FastNodeIntegration(t *testing.T) {
 	require.Equal(t, []byte(testVal2), fastValue)
 	require.Equal(t, []byte(testVal2), regularValue)
 }
+
+func TestIterate_MutableTree_Unsaved(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+	assertMutableMirrorIterate(t, tree, mirror)
+}
+
+func TestIterate_MutableTree_Saved(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	assertMutableMirrorIterate(t, tree, mirror)
+}
+
+func TestIterate_MutableTree_Unsaved_NextVersion(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	assertMutableMirrorIterate(t, tree, mirror)
+
+	randomizeTreeAndMirror(t, tree, mirror)
+
+	assertMutableMirrorIterate(t, tree, mirror)
+}
+
+func TestIterator_MutableTree_Invalid(t *testing.T) {
+	tree, err := getTestTree(0)
+	require.NoError(t, err)
+
+	itr := tree.Iterator([]byte("a"), []byte("b"), true)
+
+	require.NotNil(t, itr)
+	require.False(t, itr.Valid())
+}

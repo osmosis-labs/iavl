@@ -176,7 +176,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 
 		sort.Strings(unsavedFastNodesToSort)
 
-		itr, err := t.ndb.getFastIterator()
+		itr, err := t.ndb.getFastIterator(nil, nil, true)
 		if err != nil {
 			panic(err)
 		}
@@ -254,6 +254,11 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 	}
 
 	return t.ImmutableTree.Iterate(fn)
+}
+
+// Iterator is not supported and is therefore invalid for MutableTree. Get an ImmutableTree instead for a valid iterator.
+func (t *MutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+	return NewIterator(start, end, ascending, nil) // this is an invalid iterator
 }
 
 func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated bool) {

@@ -109,6 +109,11 @@ func (t *ImmutableTree) Version() int64 {
 	return t.version
 }
 
+// IsLatestVersion returns true if curren tree is of the latest version, false otherwise.
+func (t *ImmutableTree) IsLatestVersion() bool {
+	return t.version == t.ndb.getLatestVersion()
+}
+
 // Height returns the height of the tree.
 func (t *ImmutableTree) Height() int8 {
 	if t.root == nil {
@@ -243,6 +248,16 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped
 		}
 		return false
 	})
+}
+
+// Iterator returns an iterator over the immutable tree.
+func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+	isFastTraversal := t.IsLatestVersion()
+	if isFastTraversal {
+		return NewFastIterator(start, end, ascending, t.ndb)
+	} else {
+		return NewIterator(start, end, ascending, t)
+	}
 }
 
 // IterateRange makes a callback for all nodes with key between start and end non-inclusive.

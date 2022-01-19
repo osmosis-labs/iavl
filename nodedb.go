@@ -712,8 +712,27 @@ func (ndb *nodeDB) traversePrefixWithStop(prefix []byte, fn func(k, v []byte) (b
 }
 
 // Get iterator for fast prefix and error, if any
-func (ndb *nodeDB) getFastIterator() (dbm.Iterator, error) {
-	return dbm.IteratePrefix(ndb.db, []byte(fastKeyFormat.Prefix()))
+func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
+	var startFormatted, endFormatted []byte = nil, nil
+
+	if start != nil {
+		startFormatted = fastKeyFormat.KeyBytes(start)
+	} else {
+		startFormatted = fastKeyFormat.Key()
+	}
+
+	if end != nil {
+		endFormatted = fastKeyFormat.KeyBytes(end)
+	} else {
+		endFormatted = fastKeyFormat.Key()
+		endFormatted[0]++
+	}
+
+	if ascending {
+		return ndb.db.Iterator(startFormatted, endFormatted)
+	}
+
+	return ndb.db.ReverseIterator(startFormatted, endFormatted)
 }
 
 func (ndb *nodeDB) uncacheNode(hash []byte) {
