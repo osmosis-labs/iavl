@@ -244,13 +244,15 @@ func getRandomKeyFrom(mirror map[string]string) string {
 func setupMirrorForIterator(t *testing.T, config *iteratorTestConfig, tree *MutableTree) [][]string {
 	mirror := make([][]string, 0)
 	
+	startByteToSet := config.startByteToSet
+	endByteToSet := config.endByteToSet
+
 	if !config.ascending {
-		config.startByteToSet, config.endByteToSet = config.endByteToSet, config.startByteToSet
+		startByteToSet, endByteToSet = endByteToSet, startByteToSet
 	}
 
-	curByte := config.startByteToSet
-	for curByte != config.endByteToSet {
-
+	curByte := startByteToSet
+	for curByte != endByteToSet {
 		value := randBytes(5)
 
 		if (config.startIterate == nil || curByte >= config.startIterate[0]) && (config.endIterate == nil || curByte < config.endIterate[0]) {

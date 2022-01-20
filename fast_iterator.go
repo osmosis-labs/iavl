@@ -1,6 +1,10 @@
 package iavl
 
-import dbm "github.com/tendermint/tm-db"
+import (
+	"errors"
+
+	dbm "github.com/tendermint/tm-db"
+)
 
 // Iterator is a dbm.Iterator for ImmutableTree
 type FastIterator struct {
@@ -37,14 +41,24 @@ func NewFastIterator(start, end []byte, ascending bool, ndb *nodeDB) *FastIterat
 
 // Domain implements dbm.Iterator.
 func (iter *FastIterator) Domain() ([]byte, []byte) {
+	if iter.fastIterator == nil {
+		return iter.start, iter.end
+	}
+
 	start, end := iter.fastIterator.Domain()
 
 	if start != nil {
 		start = start[1:]
+		if len(start) == 0 {
+			start = nil
+		}
 	}
 
 	if end != nil {
 		end = end[1:]
+		if len(end) == 0 {
+			end = nil
+		}
 	}
 
 	return start, end
@@ -77,12 +91,20 @@ func (iter *FastIterator) Value() []byte {
 
 // Next implements dbm.Iterator
 func (iter *FastIterator) Next() {
+	if iter.ndb == nil {
+		iter.err = errors.New("nodeDB is nil")
+		iter.valid = false
+		return
+	}
+
 	if iter.fastIterator == nil {
 		iter.fastIterator, iter.err = iter.ndb.getFastIterator(iter.start, iter.end, iter.ascending)
-		iter.valid = iter.err == nil
-
+		iter.valid = true
 	} else {
 		iter.fastIterator.Next()
+	}
+
+	if iter.err == nil {
 		iter.err = iter.fastIterator.Error()
 	}
 
@@ -97,16 +119,14 @@ func (iter *FastIterator) Next() {
 func (iter *FastIterator) Close() error {
 	iter.fastIterator = nil
 	iter.valid = false
-	iter.err = iter.fastIterator.Close()
+
+	if iter.fastIterator != nil {
+		iter.err = iter.fastIterator.Close()
+	}
 	return iter.err
 }
 
 // Error implements dbm.Iterator
 func (iter *FastIterator) Error() error {
 	return iter.err
-}
-
-// IsFast returnts true if iterator uses fast strategy
-func (iter *FastIterator) IsFast() bool {
-	return true
 }

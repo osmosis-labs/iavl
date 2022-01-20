@@ -229,7 +229,7 @@ func (iter *Iterator) Next() {
 func (iter *Iterator) Close() error {
 	iter.t = nil
 	iter.valid = false
-	return nil
+	return iter.err
 }
 
 // Error implements dbm.Iterator

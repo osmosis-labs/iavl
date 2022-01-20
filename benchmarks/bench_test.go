@@ -73,7 +73,16 @@ func runKnownQueries(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 }
 
 func runIteration(b *testing.B, t *iavl.MutableTree) {
-	itr := t.Iterator(nil, nil, true)
+	itr := iavl.NewIterator(nil, nil, false, t.ImmutableTree)
+	defer itr.Close()
+
+	for i := 0; i < b.N && itr.Valid(); i++ {
+		itr.Next()
+	}
+}
+
+func runFastIteration(b *testing.B, t *iavl.MutableTree) {
+	itr := t.ImmutableTree.Iterator(nil, nil, false)
 	defer itr.Close()
 
 	for i := 0; i < b.N && itr.Valid(); i++ {
@@ -316,6 +325,11 @@ func runSuite(b *testing.B, d db.DB, initSize, blockSize, keyLen, dataLen int) {
 	b.Run("iteration", func(sub *testing.B) {
 		sub.ReportAllocs()
 		runIteration(sub, t)
+	})
+
+	b.Run("fast-iteration", func(sub *testing.B) {
+		sub.ReportAllocs()
+		runFastIteration(sub, t)
 	})
 	// b.Run("update", func(sub *testing.B) {
 	// 	sub.ReportAllocs()
