@@ -30,7 +30,7 @@ func BenchmarkOrphanKey(b *testing.B) {
 }
 
 func TestNewNoDbChain_ChainVersionInDb_Success(t *testing.T) {
-	const expectedVersion = "2"
+	const expectedVersion = fastStorageVersionValue
 	
 	ctrl := gomock.NewController(t)
 	dbMock := mock.NewMockDB(ctrl)
@@ -69,7 +69,7 @@ func TestNewNoDbChain_DoesNotExist_DefaultSet(t *testing.T) {
 }
 
 func TestSetChainVersion_Success(t *testing.T) {
-	const expectedVersion = "2"
+	const expectedVersion = fastStorageVersionValue
 	
 	db := db.NewMemDB()
 	
@@ -92,7 +92,7 @@ func TestSetChainVersion_Failure_OldKept(t *testing.T) {
 	ndb := newNodeDB(dbMock, 0, nil)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	ndb.setStorageVersion("2")
+	ndb.setStorageVersion(fastStorageVersionValue)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 }
 
