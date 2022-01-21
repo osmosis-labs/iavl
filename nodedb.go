@@ -17,6 +17,8 @@ const (
 	int64Size      = 8
 	hashSize       = sha256.Size
 	genesisVersion = 1
+	chainVersionKey = "chain_version"
+	defaultChainVersionValue = "1"
 )
 
 var (
@@ -41,6 +43,11 @@ var (
 	// return result_version. Else, go through old (slow) IAVL get method that walks through tree.
 	fastKeyFormat = NewKeyFormat('f', 0) // f<keystring>
 
+	// Key Format for storing metadata about the chain such as the vesion number.
+	// The value at an entry will be in a variable format and up to the caller to
+	// decide how to parse.
+	metadataKeyFormat = NewKeyFormat('m', 0) // v<keystring>
+
 	// Root nodes are indexed separately by their version
 	rootKeyFormat = NewKeyFormat('r', int64Size) // r<version>
 )
@@ -51,6 +58,7 @@ type nodeDB struct {
 	batch          dbm.Batch        // Batched writing buffer.
 	opts           Options          // Options to customize for pruning/writing
 	versionReaders map[int64]uint32 // Number of active version readers
+	chainVersion string              // Chain version
 
 	latestVersion  int64
 	nodeCache      map[string]*list.Element // Node cache.
@@ -67,6 +75,15 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		o := DefaultOptions()
 		opts = &o
 	}
+
+	// Set version
+	// chainVersionBytes, err := db.Get(metadataKeyFormat.Key(chainVersionKey))
+	chainVersion, err := db.Get(metadataKeyFormat.Key([]byte(chainVersionKey)))
+
+	if err != nil || chainVersion == nil {
+		chainVersion = []byte(defaultChainVersionValue)
+	}
+
 	return &nodeDB{
 		db:                 db,
 		batch:              db.NewBatch(),
@@ -79,6 +96,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		fastNodeCacheSize:  cacheSize,
 		fastNodeCacheQueue: list.New(),
 		versionReaders:     make(map[int64]uint32, 8),
+		chainVersion: 	 string(chainVersion),
 	}
 }
 
@@ -180,6 +198,18 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
 	ndb.cacheNode(node)
+}
+
+func (ndb *nodeDB) setChainVersion(newVersion []byte) error {
+	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(chainVersionKey)), newVersion); err != nil {
+		return err
+	}
+	ndb.chainVersion = string(newVersion)
+	return nil
+}
+
+func (ndb *nodeDB) getChainVersion() string {
+	return ndb.chainVersion
 }
 
 // SaveNode saves a FastNode to disk.
@@ -566,6 +596,10 @@ func (ndb *nodeDB) nodeKey(hash []byte) []byte {
 
 func (ndb *nodeDB) fastNodeKey(key []byte) []byte {
 	return fastKeyFormat.KeyBytes(key)
+}
+
+func (ndb *nodeDB) metadataKey(key []byte) []byte {
+	return metadataKeyFormat.KeyBytes(key)
 }
 
 func (ndb *nodeDB) orphanKey(fromVersion, toVersion int64, hash []byte) []byte {
