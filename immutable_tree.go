@@ -236,7 +236,7 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) bool {
 
 // Iterator returns an iterator over the immutable tree.
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
-	if t.isFastCacheEnabled() {
+	if t.IsFastCacheEnabled() {
 		return NewFastIterator(start, end, ascending, t.ndb)
 	} else {
 		return NewIterator(start, end, ascending, t)
@@ -263,9 +263,9 @@ func (t *ImmutableTree) GetStorageVersion() (string) {
 	return t.ndb.getStorageVersion()
 }
 
-// GetChainVersion returns the version of the underlying storage.
-func (t *ImmutableTree) isFastCacheEnabled() bool {
-	return t.IsLatestTreeVersion() && t.ndb.isFastStorageSupported()
+// IsFastCacheEnabled returns true if fast storage is enabled, false otherwise.
+func (t *ImmutableTree) IsFastCacheEnabled() bool {
+	return t.IsLatestTreeVersion() && t.ndb.isFastStorageEnabled()
 }
 
 // IterateRangeInclusive makes a callback for all nodes with key between start and end inclusive.

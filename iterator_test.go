@@ -255,8 +255,6 @@ func setupFastIteratorAndMirror(t *testing.T, config *iteratorTestConfig) (dbm.I
 	tree, err := NewMutableTree(dbm.NewMemDB(), 0)
 	require.NoError(t, err)
 
-	require.NoError(t, tree.UpgradeToFastCache())
-
 	mirror := setupMirrorForIterator(t,config, tree)
 
 	itr := NewFastIterator(config.startIterate, config.endIterate, config.ascending, tree.ndb)

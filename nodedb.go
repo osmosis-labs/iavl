@@ -17,7 +17,7 @@ const (
 	int64Size      = 8
 	hashSize       = sha256.Size
 	genesisVersion = 1
-	chainVersionKey = "chain_version"
+	storageVersionKey = "chain_version"
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue = "1.1.0"
@@ -78,12 +78,10 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		opts = &o
 	}
 
-	// Set version
-	// chainVersionBytes, err := db.Get(metadataKeyFormat.Key(chainVersionKey))
-	chainVersion, err := db.Get(metadataKeyFormat.Key([]byte(chainVersionKey)))
+	storeVersion, err := db.Get(metadataKeyFormat.Key([]byte(storageVersionKey)))
 
-	if err != nil || chainVersion == nil {
-		chainVersion = []byte(defaultStorageVersionValue)
+	if err != nil || storeVersion == nil {
+		storeVersion = []byte(defaultStorageVersionValue)
 	}
 
 	return &nodeDB{
@@ -98,7 +96,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		fastNodeCacheSize:  cacheSize,
 		fastNodeCacheQueue: list.New(),
 		versionReaders:     make(map[int64]uint32, 8),
-		storageVersion: 	 string(chainVersion),
+		storageVersion: 	 string(storeVersion),
 	}
 }
 
@@ -141,7 +139,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 }
 
 func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
-	if !ndb.isFastStorageSupported() {
+	if !ndb.isFastStorageEnabled() {
 		return nil, errors.New("storage version is not fast")
 	}
 
@@ -213,7 +211,7 @@ func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
 }
 
 func (ndb *nodeDB) setStorageVersion(newVersion string) error {
-	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(chainVersionKey)), []byte(newVersion)); err != nil {
+	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
 		return err
 	}
 	ndb.storageVersion = string(newVersion)
@@ -221,11 +219,12 @@ func (ndb *nodeDB) setStorageVersion(newVersion string) error {
 }
 
 func (ndb *nodeDB) upgradeToFastCacheFromLeaves() error {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
+	if ndb.isFastStorageEnabled() {
+		return nil
+	}
 
 	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
-		if node.isLeaf() && node.version == ndb.latestVersion {
+		if node.isLeaf() && node.version == ndb.getLatestVersion() {
 			fastNode := NewFastNode(node.key, node.value, node.version)
 			if err := ndb.saveFastNodeUnlocked(fastNode); err != nil {
 				return err
@@ -238,10 +237,15 @@ func (ndb *nodeDB) upgradeToFastCacheFromLeaves() error {
 		return err
 	}
 
+	if err := ndb.batch.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(fastStorageVersionValue)); err != nil {
+		return err
+	}
+
 	if err = ndb.resetBatch(); err != nil {
 		return err
 	}
-	ndb.setStorageVersion(fastStorageVersionValue)
+
+	ndb.storageVersion = fastStorageVersionValue
 	return err
 }
 
@@ -249,7 +253,7 @@ func (ndb *nodeDB) getStorageVersion() string {
 	return ndb.storageVersion
 }
 
-func (ndb *nodeDB) isFastStorageSupported() bool {
+func (ndb *nodeDB) isFastStorageEnabled() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 

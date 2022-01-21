@@ -48,19 +48,30 @@ func NewMutableTree(db dbm.DB, cacheSize int) (*MutableTree, error) {
 
 // NewMutableTreeWithOpts returns a new tree with the specified options.
 func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTree, error) {
+	tree := newMutableTreeWithOpts(db, cacheSize, opts)
+
+	if err := tree.ndb.upgradeToFastCacheFromLeaves(); err != nil {
+		return nil, err
+	}
+	return tree, nil
+}
+
+// Returns a mutable tree on the default storage version. Used for testing
+func newMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTree) {
 	ndb := newNodeDB(db, cacheSize, opts)
 	head := &ImmutableTree{ndb: ndb}
 
-	return &MutableTree{
-		ImmutableTree: head,
-		lastSaved:     head.clone(),
-		orphans:       map[string]int64{},
-		versions:      map[int64]bool{},
-		allRootLoaded: false,
+	tree := &MutableTree{
+		ImmutableTree:            head,
+		lastSaved:                head.clone(),
+		orphans:                  map[string]int64{},
+		versions:                 map[int64]bool{},
+		allRootLoaded:            false,
 		unsavedFastNodeAdditions: make(map[string]*FastNode),
-		unsavedFastNodeRemovals: make(map[string]interface{}),
-		ndb:           ndb,
-	}, nil
+		unsavedFastNodeRemovals:  make(map[string]interface{}),
+		ndb:                      ndb,
+	}
+	return tree
 }
 
 // IsEmpty returns whether or not the tree has any keys. Only trees that are
@@ -168,7 +179,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 		return false
 	}
 
-	if t.IsLatestTreeVersion() && t.isFastCacheEnabled() {
+	if t.IsLatestTreeVersion() && t.IsFastCacheEnabled() {
 		// We need to ensure that we iterate over saved and unsaved state in order.
 		// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
 		// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in sorted order efficiently.
@@ -444,6 +455,12 @@ func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
 
 	tree.mtx.Lock()
 	defer tree.mtx.Unlock()
+
+	// Attempt to upgrade
+	if err := tree.ndb.upgradeToFastCacheFromLeaves(); err != nil {
+		return 0, err
+	}
+
 	tree.versions[targetVersion] = true
 
 	iTree := &ImmutableTree{
@@ -482,6 +499,11 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 
 	tree.mtx.Lock()
 	defer tree.mtx.Unlock()
+
+	// Attempt to upgrade
+	if err := tree.ndb.upgradeToFastCacheFromLeaves(); err != nil {
+		return 0, err
+	}
 
 	var latestRoot []byte
 	for version, r := range roots {
@@ -619,7 +641,7 @@ func (tree *MutableTree) Rollback() {
 func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 	if tree.VersionExists(version) {
 
-		if tree.isFastCacheEnabled() {
+		if tree.IsFastCacheEnabled() {
 			fastNode, _ := tree.ndb.GetFastNode(key)
 			if fastNode == nil && version == tree.ndb.latestVersion {
 				return nil
@@ -869,18 +891,6 @@ func (tree *MutableTree) DeleteVersion(version int64) error {
 	defer tree.mtx.Unlock()
 	delete(tree.versions, version)
 	return nil
-}
-
-// UpgradeToFastCache upgrades the tree and its underlying storage to using
-// fast cache. The tree must be of the latest version to perform this upgrade.
-func (tree *MutableTree) UpgradeToFastCache() error {
-	if tree.isFastCacheEnabled() {
-		return ErrFastUpgradeAlreadyFast
-	}
-
-	tree.mtx.Lock()
-	defer tree.mtx.Unlock()
-	return tree.ndb.upgradeToFastCacheFromLeaves()
 }
 
 // Rotate right and return the new node and orphan.
