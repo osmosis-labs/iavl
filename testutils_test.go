@@ -179,6 +179,9 @@ func getRandomizedTreeAndMirror(t *testing.T) (*MutableTree, map[string]string) 
 }
 
 func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]string) {
+	if mirror == nil {
+		mirror = make(map[string]string)
+	}
 	const keyValLength = 5
 
 	numberOfSets := 1000
@@ -191,7 +194,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 
 		isUpdated := tree.Set(key, value)
 		require.False(t, isUpdated)
-		mirror[string(key)] = string(value)
+		mirror[string(key)] = string(value)	
 
 		numberOfSets--
 	}

@@ -12,8 +12,13 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// ErrVersionDoesNotExist is returned if a requested version does not exist.
-var ErrVersionDoesNotExist = errors.New("version does not exist")
+var (
+	// ErrVersionDoesNotExist is returned if a requested version does not exist.
+	ErrVersionDoesNotExist = errors.New("version does not exist")
+	// ErrFastUpgradeAlreadyFast is returned if fast cache is already enabled.
+	ErrFastUpgradeAlreadyFast = errors.New("fast cache already enabled")
+)
+
 
 // MutableTree is a persistent tree which keeps track of versions. It is not safe for concurrent
 // use, and should be guarded by a Mutex or RWLock as appropriate. An immutable tree at a given
@@ -163,7 +168,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 		return false
 	}
 
-	if t.version == t.ndb.getLatestVersion() {
+	if t.IsLatestTreeVersion() && t.isFastCacheEnabled() {
 		// We need to ensure that we iterate over saved and unsaved state in order.
 		// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
 		// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in sorted order efficiently.
@@ -613,13 +618,16 @@ func (tree *MutableTree) Rollback() {
 // modified, since it may point to data stored within IAVL.
 func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 	if tree.VersionExists(version) {
-		fastNode, _ := tree.ndb.GetFastNode(key)
-		if fastNode == nil && version == tree.ndb.latestVersion {
-			return nil
-		}
-	
-		if  fastNode != nil && fastNode.versionLastUpdatedAt <= version {
-			return fastNode.value
+
+		if tree.isFastCacheEnabled() {
+			fastNode, _ := tree.ndb.GetFastNode(key)
+			if fastNode == nil && version == tree.ndb.latestVersion {
+				return nil
+			}
+		
+			if fastNode != nil && fastNode.versionLastUpdatedAt <= version {
+				return fastNode.value
+			}
 		}
 
 		t, err := tree.GetImmutable(version)
@@ -861,6 +869,18 @@ func (tree *MutableTree) DeleteVersion(version int64) error {
 	defer tree.mtx.Unlock()
 	delete(tree.versions, version)
 	return nil
+}
+
+// UpgradeToFastCache upgrades the tree and its underlying storage to using
+// fast cache. The tree must be of the latest version to perform this upgrade.
+func (tree *MutableTree) UpgradeToFastCache() error {
+	if tree.isFastCacheEnabled() {
+		return ErrFastUpgradeAlreadyFast
+	}
+
+	tree.mtx.Lock()
+	defer tree.mtx.Unlock()
+	return tree.ndb.upgradeToFastCacheFromLeaves()
 }
 
 // Rotate right and return the new node and orphan.

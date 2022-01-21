@@ -18,7 +18,9 @@ const (
 	hashSize       = sha256.Size
 	genesisVersion = 1
 	chainVersionKey = "chain_version"
-	defaultChainVersionValue = "1"
+	// Using semantic versioning: https://semver.org/
+	defaultStorageVersionValue = "1.0.0"
+	fastStorageVersionValue = "1.1.0"
 )
 
 var (
@@ -58,7 +60,7 @@ type nodeDB struct {
 	batch          dbm.Batch        // Batched writing buffer.
 	opts           Options          // Options to customize for pruning/writing
 	versionReaders map[int64]uint32 // Number of active version readers
-	chainVersion string              // Chain version
+	storageVersion string              // Chain version
 
 	latestVersion  int64
 	nodeCache      map[string]*list.Element // Node cache.
@@ -81,7 +83,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 	chainVersion, err := db.Get(metadataKeyFormat.Key([]byte(chainVersionKey)))
 
 	if err != nil || chainVersion == nil {
-		chainVersion = []byte(defaultChainVersionValue)
+		chainVersion = []byte(defaultStorageVersionValue)
 	}
 
 	return &nodeDB{
@@ -96,7 +98,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		fastNodeCacheSize:  cacheSize,
 		fastNodeCacheQueue: list.New(),
 		versionReaders:     make(map[int64]uint32, 8),
-		chainVersion: 	 string(chainVersion),
+		storageVersion: 	 string(chainVersion),
 	}
 }
 
@@ -112,7 +114,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 
 	// Check the cache.
 	if elem, ok := ndb.nodeCache[string(hash)]; ok {
-		// Already exists. Move to back of nodeCacheQueue.
+			// Already exists. Move to back of nodeCacheQueue.
 		ndb.nodeCacheQueue.MoveToBack(elem)
 		return elem.Value.(*Node)
 	}
@@ -139,6 +141,10 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 }
 
 func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
+	if !ndb.isFastStorageSupported() {
+		return nil, errors.New("storage version is not fast")
+	}
+
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 
@@ -146,7 +152,6 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, fmt.Errorf("nodeDB.GetFastNode() requires key, len(key) equals 0")
 	}
 
-	// TODO make a second write lock just for fastNodeCacheQueue later
 	// Check the cache.
 	if elem, ok := ndb.fastNodeCache[string(key)]; ok {
 		// Already exists. Move to back of fastNodeCacheQueue.
@@ -200,23 +205,52 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 	ndb.cacheNode(node)
 }
 
-func (ndb *nodeDB) setChainVersion(newVersion []byte) error {
-	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(chainVersionKey)), newVersion); err != nil {
-		return err
-	}
-	ndb.chainVersion = string(newVersion)
-	return nil
-}
-
-func (ndb *nodeDB) getChainVersion() string {
-	return ndb.chainVersion
-}
-
 // SaveNode saves a FastNode to disk.
 func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	return ndb.saveFastNodeUnlocked(node)
+}
+
+func (ndb *nodeDB) setStorageVersion(newVersion string) error {
+	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(chainVersionKey)), []byte(newVersion)); err != nil {
+		return err
+	}
+	ndb.storageVersion = string(newVersion)
+	return nil
+}
+
+func (ndb *nodeDB) upgradeToFastCacheFromLeaves() error {
+	ndb.mtx.Lock()
+	defer ndb.mtx.Unlock()
+
+	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
+		if node.isLeaf() && node.version == ndb.latestVersion {
+			fastNode := NewFastNode(node.key, node.value, node.version)
+			if err := ndb.saveFastNodeUnlocked(fastNode); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if err = ndb.resetBatch(); err != nil {
+		return err
+	}
+	ndb.setStorageVersion(fastStorageVersionValue)
+	return err
+}
+
+func (ndb *nodeDB) getStorageVersion() string {
+	return ndb.storageVersion
+}
+
+func (ndb *nodeDB) isFastStorageSupported() bool {
+	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 
 // SaveNode saves a FastNode to disk.
@@ -290,7 +324,7 @@ func (ndb *nodeDB) SaveBranch(node *Node) []byte {
 }
 
 // resetBatch reset the db batch, keep low memory used
-func (ndb *nodeDB) resetBatch() {
+func (ndb *nodeDB) resetBatch() error {
 	var err error
 	if ndb.opts.Sync {
 		err = ndb.batch.WriteSync()
@@ -298,10 +332,16 @@ func (ndb *nodeDB) resetBatch() {
 		err = ndb.batch.Write()
 	}
 	if err != nil {
-		panic(err)
+		return err
 	}
-	ndb.batch.Close()
+	err = ndb.batch.Close()
+	if err != nil {
+		return err
+	}
+
 	ndb.batch = ndb.db.NewBatch()
+
+	return nil
 }
 
 // DeleteVersion deletes a tree version from disk.
@@ -596,10 +636,6 @@ func (ndb *nodeDB) nodeKey(hash []byte) []byte {
 
 func (ndb *nodeDB) fastNodeKey(key []byte) []byte {
 	return fastKeyFormat.KeyBytes(key)
-}
-
-func (ndb *nodeDB) metadataKey(key []byte) []byte {
-	return metadataKeyFormat.KeyBytes(key)
 }
 
 func (ndb *nodeDB) orphanKey(fromVersion, toVersion int64, hash []byte) []byte {

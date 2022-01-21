@@ -39,11 +39,11 @@ func TestNewNoDbChain_ChainVersionInDb_Success(t *testing.T) {
 	dbMock.EXPECT().NewBatch().Return(nil).Times(1)
 	
 	ndb := newNodeDB(dbMock, 0, nil)
-	require.Equal(t, expectedVersion, ndb.chainVersion)
+	require.Equal(t, expectedVersion, ndb.storageVersion)
 }
 
 func TestNewNoDbChain_ErrorInConstructor_DefaultSet(t *testing.T) {
-	const expectedVersion = defaultChainVersionValue
+	const expectedVersion = defaultStorageVersionValue
 	
 	ctrl := gomock.NewController(t)
 	dbMock := mock.NewMockDB(ctrl)
@@ -52,11 +52,11 @@ func TestNewNoDbChain_ErrorInConstructor_DefaultSet(t *testing.T) {
 	dbMock.EXPECT().NewBatch().Return(nil).Times(1)
 	
 	ndb := newNodeDB(dbMock, 0, nil)
-	require.Equal(t, expectedVersion, string(ndb.getChainVersion()))
+	require.Equal(t, expectedVersion, string(ndb.getStorageVersion()))
 }
 
 func TestNewNoDbChain_DoesNotExist_DefaultSet(t *testing.T) {
-	const expectedVersion = defaultChainVersionValue
+	const expectedVersion = defaultStorageVersionValue
 	
 	ctrl := gomock.NewController(t)
 	dbMock := mock.NewMockDB(ctrl)
@@ -65,7 +65,7 @@ func TestNewNoDbChain_DoesNotExist_DefaultSet(t *testing.T) {
 	dbMock.EXPECT().NewBatch().Return(nil).Times(1)
 	
 	ndb := newNodeDB(dbMock, 0, nil)
-	require.Equal(t, expectedVersion, string(ndb.getChainVersion()))
+	require.Equal(t, expectedVersion, string(ndb.getStorageVersion()))
 }
 
 func TestSetChainVersion_Success(t *testing.T) {
@@ -74,26 +74,26 @@ func TestSetChainVersion_Success(t *testing.T) {
 	db := db.NewMemDB()
 	
 	ndb := newNodeDB(db, 0, nil)
-	require.Equal(t, defaultChainVersionValue, string(ndb.getChainVersion()))
+	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	err := ndb.setChainVersion([]byte(expectedVersion))
+	err := ndb.setStorageVersion(expectedVersion)
 	require.NoError(t, err)
-	require.Equal(t, expectedVersion, string(ndb.getChainVersion()))
+	require.Equal(t, expectedVersion, string(ndb.getStorageVersion()))
 }
 
 func TestSetChainVersion_Failure_OldKept(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	
 	dbMock := mock.NewMockDB(ctrl)
-	dbMock.EXPECT().Get(gomock.Any()).Return([]byte(defaultChainVersionValue), nil).Times(1)
+	dbMock.EXPECT().Get(gomock.Any()).Return([]byte(defaultStorageVersionValue), nil).Times(1)
 	dbMock.EXPECT().NewBatch().Return(nil).Times(1)
 	dbMock.EXPECT().Set(gomock.Any(), gomock.Any()).Return(errors.New("some db error")).Times(1)
 
 	ndb := newNodeDB(dbMock, 0, nil)
-	require.Equal(t, defaultChainVersionValue, string(ndb.getChainVersion()))
+	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	ndb.setChainVersion([]byte("2"))
-	require.Equal(t, defaultChainVersionValue, string(ndb.getChainVersion()))
+	ndb.setStorageVersion("2")
+	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 }
 
 func makeHashes(b *testing.B, seed int64) [][]byte {
