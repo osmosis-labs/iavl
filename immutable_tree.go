@@ -111,7 +111,7 @@ func (t *ImmutableTree) Version() int64 {
 
 // IsLatestTreeVersion returns true if curren tree is of the latest version, false otherwise.
 func (t *ImmutableTree) IsLatestTreeVersion() bool {
-	return t.version == t.ndb.latestVersion
+	return t.version == t.ndb.getLatestVersion()
 }
 
 // Height returns the height of the tree.
