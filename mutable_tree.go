@@ -12,13 +12,8 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-var (
-	// ErrVersionDoesNotExist is returned if a requested version does not exist.
-	ErrVersionDoesNotExist = errors.New("version does not exist")
-	// ErrFastUpgradeAlreadyFast is returned if fast cache is already enabled.
-	ErrFastUpgradeAlreadyFast = errors.New("fast cache already enabled")
-)
-
+// ErrVersionDoesNotExist is returned if a requested version does not exist.
+var ErrVersionDoesNotExist = errors.New("version does not exist")
 
 // MutableTree is a persistent tree which keeps track of versions. It is not safe for concurrent
 // use, and should be guarded by a Mutex or RWLock as appropriate. An immutable tree at a given
