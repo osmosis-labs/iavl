@@ -51,7 +51,7 @@ func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTr
 	return tree, nil
 }
 
-// Returns a mutable tree on the default storage version. Used for testing
+// newMutableTreeWithOpts returns a mutable tree on the default storage version. Used for testing
 func newMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTree) {
 	ndb := newNodeDB(db, cacheSize, opts)
 	head := &ImmutableTree{ndb: ndb}
