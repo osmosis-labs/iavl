@@ -383,7 +383,7 @@ func TestVersionedTree(t *testing.T) {
 	tree, err := NewMutableTree(d, 0)
 	require.NoError(err)
 
-	// We start with one keys in the database that represents storage version.
+	// We start with one key in the database that represents storage version.
 	require.Equal(1, tree.ndb.size())
 	require.True(tree.IsEmpty())
 	require.Equal(fastStorageVersionValue, tree.GetStorageVersion())

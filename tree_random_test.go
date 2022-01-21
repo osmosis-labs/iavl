@@ -393,10 +393,6 @@ func assertMirror(t *testing.T, tree *MutableTree, mirror map[string]string, ver
 	// mirror and check with get. This is to exercise both the iteration and Get() code paths.
 	iterated := 0
 	itree.Iterate(func(key, value []byte) bool {
-		if string(value) != mirror[string(key)] {
-			require.Equal(t, string(value), mirror[string(key)], "Invalid value for key %q", key)
-		}
-
 		require.Equal(t, string(value), mirror[string(key)], "Invalid value for key %q", key)
 		iterated++
 		return false
