@@ -281,6 +281,7 @@ func setupMirrorForIterator(t *testing.T, config *iteratorTestConfig, tree *Muta
 func assertIterator(t *testing.T, itr dbm.Iterator, mirror [][]string, ascending bool) {
 	startIdx, endIdx := 0, len(mirror)-1
 	increment := 1
+        // flip the iteration order over mirror if descending
 	if !ascending {
 		startIdx, endIdx = endIdx, startIdx
 		increment *= -1
