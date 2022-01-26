@@ -52,8 +52,8 @@ func setupExportTreeRandom(t *testing.T) *ImmutableTree {
 		keySize   = 16
 		valueSize = 16
 
-		versions    = 32   // number of versions to generate
-		versionOps  = 4096 // number of operations (create/update/delete) per version
+		versions    = 8   // number of versions to generate
+		versionOps  = 1024 // number of operations (create/update/delete) per version
 		updateRatio = 0.4  // ratio of updates out of all operations
 		deleteRatio = 0.2  // ratio of deletes out of all operations
 	)
@@ -176,7 +176,7 @@ func TestExporter_Import(t *testing.T) {
 		"basic tree": setupExportTreeBasic(t),
 	}
 	if !testing.Short() {
-		testcases["sized tree"] = setupExportTreeSized(t, 4096)
+		// testcases["sized tree"] = setupExportTreeSized(t, 4096)
 		testcases["random tree"] = setupExportTreeRandom(t)
 	}
 

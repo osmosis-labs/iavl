@@ -1,6 +1,7 @@
 package iavl
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -148,11 +149,39 @@ func (t *ImmutableTree) Export() *Exporter {
 //
 // The index is the index in the list of leaf nodes sorted lexicographically by key. The leftmost leaf has index 0.
 // It's neighbor has index 1 and so on.
-func (t *ImmutableTree) GetWithIndex(key []byte) (index int64, value []byte) {
+func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte) {
 	if t.root == nil {
 		return 0, nil
 	}
+
+	if !t.IsFastCacheEnabled() {
+		return t.getWithIndex(key)
+	}
+
+	return t.getWithIndexFast(key)
+}
+
+func (t *ImmutableTree) getWithIndex(key []byte) (index int64, value []byte) {
 	return t.root.get(t, key)
+}
+
+func (t *ImmutableTree) getWithIndexFast(key []byte) (index int64, value []byte) {
+	index = 0
+	done := false
+	itr := t.Iterator(nil, nil, true)
+	for ; !done && itr.Valid(); itr.Next() {
+		switch bytes.Compare(itr.Key(), key) {
+		case -1:
+			index++
+		case 1:
+			value = nil
+			done = true
+		default:
+			value = itr.Value()
+			done = true
+		}
+	}
+	return index, value
 }
 
 // Get returns the value of the specified key if it exists, or nil.
@@ -201,7 +230,21 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 	if t.root == nil {
 		return nil, nil
 	}
-	return t.root.getByIndex(t, index)
+
+	if !t.IsFastCacheEnabled() {
+		return t.root.getByIndex(t, index)
+	}
+
+	itr := t.Iterator(nil, nil, true)
+	for ; index > 0 && itr.Valid(); itr.Next() {
+		index--
+	}
+
+	if index != 0 {
+		return nil, nil
+	}
+
+	return itr.Key(), itr.Value()
 }
 
 // Iterate iterates over all keys of the tree. The keys and values must not be modified,

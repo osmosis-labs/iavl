@@ -1786,3 +1786,47 @@ func TestIterate_ImmutableTree_Version2(t *testing.T) {
 
 	assertImmutableMirrorIterate(t, immutableTree, mirror)
 }
+
+func TestGetByIndex_ImmutableTree(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+	mirrorKeys := getSortedMirrorKeys(mirror)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	immutableTree, err := tree.GetImmutable(1)
+	require.NoError(t, err)
+
+	require.True(t, immutableTree.IsFastCacheEnabled())
+
+	for index, expectedKey := range mirrorKeys {
+		expectedValue := mirror[expectedKey]
+
+		actualKey, actualValue := immutableTree.GetByIndex(int64(index))
+
+		require.Equal(t, expectedKey, string(actualKey))
+		require.Equal(t, expectedValue, string(actualValue))
+	}
+}
+
+func TestGetWithIndex_ImmutableTree(t *testing.T) {
+	tree, mirror := getRandomizedTreeAndMirror(t)
+	mirrorKeys := getSortedMirrorKeys(mirror)
+
+	_, _, err := tree.SaveVersion()
+	require.NoError(t, err)
+
+	immutableTree, err := tree.GetImmutable(1)
+	require.NoError(t, err)
+
+	require.True(t, immutableTree.IsFastCacheEnabled())
+
+	for expectedIndex, key := range mirrorKeys {
+		expectedValue := mirror[key]
+
+		actualIndex, actualValue := immutableTree.GetWithIndex([]byte(key))
+
+		require.Equal(t, expectedValue, string(actualValue))
+		require.Equal(t, int64(expectedIndex), actualIndex)
+	}
+}

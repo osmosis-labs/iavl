@@ -439,11 +439,6 @@ func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
 	tree.mtx.Lock()
 	defer tree.mtx.Unlock()
 
-	// Attempt to upgrade
-	if _, err := tree.enableFastStorageAndCommitIfNotEnabled(); err != nil {
-		return 0, err
-	}
-
 	tree.versions[targetVersion] = true
 
 	iTree := &ImmutableTree{
@@ -459,6 +454,11 @@ func (tree *MutableTree) LazyLoadVersion(targetVersion int64) (int64, error) {
 	tree.orphans = map[string]int64{}
 	tree.ImmutableTree = iTree
 	tree.lastSaved = iTree.clone()
+
+	// Attempt to upgrade
+	if _, err := tree.enableFastStorageAndCommitIfNotEnabled(); err != nil {
+		return 0, err
+	}
 
 	return targetVersion, nil
 }
@@ -482,11 +482,6 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 
 	tree.mtx.Lock()
 	defer tree.mtx.Unlock()
-
-	// Attempt to upgrade
-	if _, err := tree.enableFastStorageAndCommitIfNotEnabled(); err != nil {
-		return 0, err
-	}
 
 	var latestRoot []byte
 	for version, r := range roots {
@@ -523,6 +518,11 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 	tree.ImmutableTree = t
 	tree.lastSaved = t.clone()
 	tree.allRootLoaded = true
+
+	// Attempt to upgrade
+	if _, err := tree.enableFastStorageAndCommitIfNotEnabled(); err != nil {
+		return 0, err
+	}
 
 	return latestVersion, nil
 }
