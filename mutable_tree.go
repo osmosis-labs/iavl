@@ -671,7 +671,7 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 		if err != nil {
 			return nil
 		}
-		_, value := t.GetWithIndex(key)
+		value := t.Get(key)
 		return value
 	}
 	return nil
