@@ -110,6 +110,73 @@ func TestGetNonMembership(t *testing.T) {
 	}
 }
 
+func BenchmarkGetNonMembership(b *testing.B) {
+	cases := []struct{
+		size int
+		loc  Where
+		} {
+		{size: 100, loc: Left},
+		{size: 100, loc: Middle},
+		{size: 100, loc: Right},
+		{size: 5431, loc: Left},
+		{size: 5431, loc: Middle},
+		{size: 5431, loc: Right},
+	}
+
+	performTest := func (tree *MutableTree, allKeys [][]byte, loc Where)  {
+		key := GetNonKey(allKeys, loc)
+
+		proof, err := tree.GetNonMembershipProof(key)
+		require.NoError(b, err, "Creating Proof: %+v", err)
+
+		b.StopTimer()
+		root := tree.Hash()
+		valid := ics23.VerifyNonMembership(ics23.IavlSpec, root, proof, key)
+		if !valid {
+			require.NoError(b, err, "Non Membership Proof Invalid")
+		}
+		b.StartTimer()
+	}
+
+
+
+	b.Run("fast", func (b *testing.B)  {
+		
+		for i:= 0; i < b.N; i++ {
+			b.StopTimer()
+			caseIdx := rand.Intn(len(cases))
+			tc := cases[caseIdx]
+
+			tree, allkeys, err := BuildTree(tc.size)
+			require.NoError(b, err, "Creating tree: %+v", err)
+			// Save version to enable fast cache
+			_, _, err = tree.SaveVersion()
+			require.NoError(b, err)
+	
+			require.True(b, tree.IsFastCacheEnabled())
+			b.StartTimer()
+			performTest(tree, allkeys, tc.loc)
+		}
+
+
+	})
+
+	b.Run("regular", func (b *testing.B)  {
+		for i:= 0; i < b.N; i++ {
+			b.StopTimer()
+			caseIdx := rand.Intn(len(cases))
+			tc := cases[caseIdx]
+
+			tree, allkeys, err := BuildTree(tc.size)
+			require.NoError(b, err, "Creating tree: %+v", err)
+			require.False(b, tree.IsFastCacheEnabled())
+	
+			b.StartTimer()
+			performTest(tree, allkeys, tc.loc)
+		}
+	})
+}
+
 // Test Helpers
 
 // Result is the result of one match
