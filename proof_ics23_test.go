@@ -72,22 +72,40 @@ func TestGetNonMembership(t *testing.T) {
 		"big right":    {size: 5431, loc: Right},
 	}
 
+	performTest := func (tree *MutableTree, allKeys [][]byte, loc Where)  {
+		key := GetNonKey(allKeys, loc)
+
+		proof, err := tree.GetNonMembershipProof(key)
+		require.NoError(t, err, "Creating Proof: %+v", err)
+
+		root := tree.Hash()
+		valid := ics23.VerifyNonMembership(ics23.IavlSpec, root, proof, key)
+		if !valid {
+			require.NoError(t, err, "Non Membership Proof Invalid")
+		}
+	}
+
 	for name, tc := range cases {
 		tc := tc
-		t.Run(name, func(t *testing.T) {
+		t.Run("fast-" + name, func (t *testing.T)  {
 			tree, allkeys, err := BuildTree(tc.size)
 			require.NoError(t, err, "Creating tree: %+v", err)
+			// Save version to enable fast cache
+			_, _, err = tree.SaveVersion()
+			require.NoError(t, err)
 
-			key := GetNonKey(allkeys, tc.loc)
+			require.True(t, tree.IsFastCacheEnabled())
 
-			proof, err := tree.GetNonMembershipProof(key)
-			require.NoError(t, err, "Creating Proof: %+v", err)
+			performTest(tree, allkeys, tc.loc)
+		})
 
-			root := tree.Hash()
-			valid := ics23.VerifyNonMembership(ics23.IavlSpec, root, proof, key)
-			if !valid {
-				require.NoError(t, err, "Non Membership Proof Invalid")
-			}
+		t.Run("regular-" + name, func (t *testing.T)  {
+			tree, allkeys, err := BuildTree(tc.size)
+			require.NoError(t, err, "Creating tree: %+v", err)
+			require.False(t, tree.IsFastCacheEnabled())
+
+
+			performTest(tree, allkeys, tc.loc)
 		})
 	}
 }
@@ -107,6 +125,10 @@ type Result struct {
 // returns a range proof and the root hash of the tree
 func GenerateResult(size int, loc Where) (*Result, error) {
 	tree, allkeys, err := BuildTree(size)
+	if err != nil {
+		return nil, err
+	}
+	_, _, err = tree.SaveVersion()
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +195,7 @@ func GetNonKey(allkeys [][]byte, loc Where) []byte {
 
 // BuildTree creates random key/values and stores in tree
 // returns a list of all keys in sorted order
-func BuildTree(size int) (itree *ImmutableTree, keys [][]byte, err error) {
+func BuildTree(size int) (itree *MutableTree, keys [][]byte, err error) {
 	tree, _ := NewMutableTree(db.NewMemDB(), 0)
 
 	// insert lots of info and store the bytes
@@ -191,5 +213,5 @@ func BuildTree(size int) (itree *ImmutableTree, keys [][]byte, err error) {
 		return bytes.Compare(keys[i], keys[j]) < 0
 	})
 
-	return tree.ImmutableTree, keys, nil
+	return tree, keys, nil
 }
