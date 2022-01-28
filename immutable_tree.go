@@ -154,11 +154,10 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte) {
 		return 0, nil
 	}
 
-	if !t.IsFastCacheEnabled() {
-		return t.getWithIndex(key)
+	if t.IsFastCacheEnabled() {
+		return t.getWithIndexFast(key)
 	}
-
-	return t.getWithIndexFast(key)
+	return t.getWithIndex(key)
 }
 
 func (t *ImmutableTree) getWithIndex(key []byte) (index int64, value []byte) {

@@ -176,7 +176,7 @@ func TestExporter_Import(t *testing.T) {
 		"basic tree": setupExportTreeBasic(t),
 	}
 	if !testing.Short() {
-		// testcases["sized tree"] = setupExportTreeSized(t, 4096)
+		testcases["sized tree"] = setupExportTreeSized(t, 4096)
 		testcases["random tree"] = setupExportTreeRandom(t)
 	}
 

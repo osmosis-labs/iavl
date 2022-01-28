@@ -31,7 +31,7 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 	}
 	buf = buf[n:]
 
-	val, n, cause := decodeBytes(buf)
+	val, _, cause := decodeBytes(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.value")
 	}
@@ -46,9 +46,7 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 }
 
 func (node *FastNode) encodedSize() int {
-	n :=
-	encodeVarintSize(node.versionLastUpdatedAt) +
-	encodeBytesSize(node.value)
+	n := encodeVarintSize(node.versionLastUpdatedAt) + encodeBytesSize(node.value)
 	return n
 }
 

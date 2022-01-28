@@ -24,6 +24,7 @@ const (
 	// This delimiter is valid only if fast storage is enabled (i.e. storageVersion >= fastStorageVersionValue).
 	// The latest saved version is needed for protection against downgrade and re-upgrade. In such a case, it would
 	// be possible to observe mismatch between the latest version state and the fast nodes on disk.
+	// Therefore, we would like to detect that and overwrite fast nodes on disk with the latest version state.
 	fastStorageVersionDelimiter = "-"
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
@@ -257,7 +258,6 @@ func (ndb *nodeDB) shouldForceFastStorageUpdate() bool {
 			return true
 		}
 	}
-
 	return false
 }
 
