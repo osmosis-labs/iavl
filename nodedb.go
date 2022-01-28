@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -18,6 +20,11 @@ const (
 	hashSize          = sha256.Size
 	genesisVersion    = 1
 	storageVersionKey = "storage_version"
+	// We store latest saved version together with storage version delimited by the constant below.
+	// This delimiter is valid only if fast storage is enabled (i.e. storageVersion >= fastStorageVersionValue).
+	// The latest saved version is needed for protection against downgrade and re-upgrade. In such a case, it would
+	// be possible to observe mismatch between the latest version state and the fast nodes on disk.
+	fastStorageVersionDelimiter = "-"
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue    = "1.1.0"
@@ -211,6 +218,10 @@ func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
 }
 
 func (ndb *nodeDB) setStorageVersion(newVersion string) error {
+	if newVersion >= fastStorageVersionValue {
+		newVersion = newVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
+	}
+
 	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
 		return err
 	}
@@ -219,6 +230,10 @@ func (ndb *nodeDB) setStorageVersion(newVersion string) error {
 }
 
 func (ndb *nodeDB) setStorageVersionBatch(newVersion string) error {
+	if newVersion >= fastStorageVersionValue {
+		newVersion = newVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
+	}
+
 	if err := ndb.batch.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
 		return err
 	}
@@ -232,6 +247,18 @@ func (ndb *nodeDB) getStorageVersion() string {
 
 func (ndb *nodeDB) isFastStorageEnabled() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
+}
+
+func (ndb *nodeDB) shouldForceFastStorageUpdate() bool {
+	versions := strings.Split(ndb.storageVersion, fastStorageVersionDelimiter)
+
+	if len(versions) == 2 {
+		if versions[1] != strconv.Itoa(int(ndb.getLatestVersion())) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // SaveNode saves a FastNode to disk.

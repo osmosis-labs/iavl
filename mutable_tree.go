@@ -760,10 +760,8 @@ func (tree *MutableTree) saveFastNodeVersion() error {
 		return err
 	}
 
-	if !tree.ndb.isFastStorageEnabled() {
-		if err := tree.ndb.setStorageVersionBatch(fastStorageVersionValue); err != nil {
-			return err
-		}
+	if err := tree.ndb.setStorageVersionBatch(fastStorageVersionValue); err != nil {
+		return err
 	}
 
 	return nil
