@@ -179,7 +179,7 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 	sort.Strings(unsavedFastNodesToSort)
 
 	itr := t.ImmutableTree.Iterator(nil, nil, true)
-
+	defer itr.Close()
 	nextUnsavedIdx := 0
 	for itr.Valid() && nextUnsavedIdx < len(unsavedFastNodesToSort) {
 		diskKeyStr := string(itr.Key())
@@ -588,6 +588,7 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 	}()
 
 	itr := tree.ImmutableTree.Iterator(nil, nil, true)
+	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
 		if err = tree.ndb.SaveFastNode(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
 			return err

@@ -92,6 +92,7 @@ func (t *ImmutableTree) getNonMembershipProofFast(key []byte) (*ics23.NonExisten
 
 	done := false
 	itr := t.Iterator(nil, nil, true)
+	defer itr.Close()
 	for ; !done && itr.Valid(); itr.Next() {
 		switch bytes.Compare(itr.Key(), key) {
 		case -1:

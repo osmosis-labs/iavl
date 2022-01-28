@@ -169,6 +169,7 @@ func (t *ImmutableTree) getWithIndexFast(key []byte) (index int64, value []byte)
 	index = 0
 	done := false
 	itr := t.Iterator(nil, nil, true)
+	defer itr.Close()
 	for ; !done && itr.Valid(); itr.Next() {
 		switch bytes.Compare(itr.Key(), key) {
 		case -1:
@@ -236,6 +237,7 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 	}
 
 	itr := t.Iterator(nil, nil, true)
+	defer itr.Close()
 	for ; index > 0 && itr.Valid(); itr.Next() {
 		index--
 	}
@@ -255,7 +257,7 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) bool {
 	}
 
 	itr := t.Iterator(nil, nil, true)
-
+	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
 		if fn(itr.Key(), itr.Value()) {
 			return true

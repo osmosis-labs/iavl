@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,15 +77,9 @@ func runKnownQueriesFast(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 }
 
 func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) {
-	// Memdb deadlocks for this case when SaveVersion below is called. Needs investigation.
-	if strings.Contains(b.Name(), "memdb") {
-		b.Skip()
-	}
-
 	b.StopTimer()
 	// Save version to get an old immutable tree to query against,
 	// Fast storage is not enabled on old tree versions, allowing us to bench the desired behavior.
-	t.Set([]byte("key"), []byte("value"))
 	_, version, err := t.SaveVersion()
 	require.NoError(b, err)
 
@@ -102,11 +95,6 @@ func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) {
 }
 
 func runKnownQueriesSlow(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
-	// Memdb deadlocks for this case when SaveVersion below is called. Needs investigation.
-	if strings.Contains(b.Name(), "memdb") {
-		b.Skip()
-	}
-
 	b.StopTimer()
 	// Save version to get an old immutable tree to query against,
 	// Fast storage is not enabled on old tree versions, allowing us to bench the desired behavior.
