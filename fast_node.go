@@ -12,7 +12,6 @@ type FastNode struct {
 	key                  []byte
 	versionLastUpdatedAt int64
 	value                []byte
-	leafHash             []byte
 }
 
 // NewFastNode returns a new fast node from a value and version.
@@ -36,18 +35,11 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.value")
 	}
-	buf = buf[n:]
-
-	leafHash, _, cause := decodeBytes(buf)
-	if cause != nil {
-		return nil, errors.Wrap(cause, "decoding fastnode.leafHash")
-	}
 
 	fastNode := &FastNode{
 		key:                  key,
 		versionLastUpdatedAt: ver,
 		value:                val,
-		leafHash:        leafHash,
 	}
 
 	return fastNode, nil
@@ -56,8 +48,7 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 func (node *FastNode) encodedSize() int {
 	n :=
 	encodeVarintSize(node.versionLastUpdatedAt) +
-	encodeBytesSize(node.value) +
-	encodeBytesSize(node.leafHash)
+	encodeBytesSize(node.value)
 	return n
 }
 
@@ -73,10 +64,6 @@ func (node *FastNode) writeBytes(w io.Writer) error {
 	cause = encodeBytes(w, node.value)
 	if cause != nil {
 		return errors.Wrap(cause, "writing value")
-	}
-	cause = encodeBytes(w, node.leafHash)
-	if cause != nil {
-		return errors.Wrap(cause, "writing leaf hash")
 	}
 	return nil
 }

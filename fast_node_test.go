@@ -13,10 +13,9 @@ func TestFastNode_encodedSize(t *testing.T) {
 		key:                  randBytes(10),
 		versionLastUpdatedAt: 1,
 		value:                randBytes(20),
-		leafHash:             randBytes(20),
 	}
 
-	expectedSize := 1 + len(fastNode.value) + 1 + len(fastNode.leafHash) + 1
+	expectedSize := 1 + len(fastNode.value) + 1
 
 	require.Equal(t, expectedSize, fastNode.encodedSize())
 }
@@ -28,13 +27,12 @@ func TestFastNode_encode_decode(t *testing.T) {
 		expectError bool
 	}{
 		"nil":   {nil, "", true},
-		"empty": {&FastNode{}, "000000", false},
+		"empty": {&FastNode{}, "0000", false},
 		"inner": {&FastNode{
 			key:       []byte{0x4},
 			versionLastUpdatedAt:   1,
 			value: []byte{0x2},
-			leafHash:  []byte{0x3},
-		}, "0201020103", false},
+		}, "020102", false},
 	}
 	for name, tc := range testcases {
 		tc := tc
@@ -53,9 +51,6 @@ func TestFastNode_encode_decode(t *testing.T) {
 			// since value and leafHash are always decoded to []byte{} we augment the expected struct here
 			if tc.node.value == nil {
 				tc.node.value = []byte{}
-			}
-			if tc.node.leafHash == nil {
-				tc.node.leafHash = []byte{}
 			}
 			require.Equal(t, tc.node, node)
 		})
