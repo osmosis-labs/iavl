@@ -153,35 +153,7 @@ func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte) {
 	if t.root == nil {
 		return 0, nil
 	}
-
-	if t.IsFastCacheEnabled() {
-		return t.getWithIndexFast(key)
-	}
-	return t.getWithIndex(key)
-}
-
-func (t *ImmutableTree) getWithIndex(key []byte) (index int64, value []byte) {
 	return t.root.get(t, key)
-}
-
-func (t *ImmutableTree) getWithIndexFast(key []byte) (index int64, value []byte) {
-	index = 0
-	done := false
-	itr := t.Iterator(nil, nil, true)
-	defer itr.Close()
-	for ; !done && itr.Valid(); itr.Next() {
-		switch bytes.Compare(itr.Key(), key) {
-		case -1:
-			index++
-		case 1:
-			value = nil
-			done = true
-		default:
-			value = itr.Value()
-			done = true
-		}
-	}
-	return index, value
 }
 
 // Get returns the value of the specified key if it exists, or nil.
@@ -231,21 +203,7 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 		return nil, nil
 	}
 
-	if !t.IsFastCacheEnabled() {
-		return t.root.getByIndex(t, index)
-	}
-
-	itr := t.Iterator(nil, nil, true)
-	defer itr.Close()
-	for ; index > 0 && itr.Valid(); itr.Next() {
-		index--
-	}
-
-	if index != 0 {
-		return nil, nil
-	}
-
-	return itr.Key(), itr.Value()
+	return t.root.getByIndex(t, index)
 }
 
 // Iterate iterates over all keys of the tree. The keys and values must not be modified,
