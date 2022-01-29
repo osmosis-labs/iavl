@@ -90,7 +90,7 @@ func runQueriesSlow(b *testing.B, t *iavl.MutableTree, keyLen int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		q := randBytes(keyLen)
-		t.GetWithIndex(q)
+		itree.GetWithIndex(q)
 	}
 }
 
@@ -108,7 +108,7 @@ func runKnownQueriesSlow(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 	l := int32(len(keys))
 	for i := 0; i < b.N; i++ {
 		q := keys[rand.Int31n(l)]
-		t.GetWithIndex(q)
+		itree.GetWithIndex(q)
 	}
 }
 
