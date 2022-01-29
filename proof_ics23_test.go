@@ -42,7 +42,7 @@ func TestGetMembership(t *testing.T) {
 	for name, tc := range cases {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
-			tree, allkeys, err := BuildTree(tc.size)
+			tree, allkeys, err := BuildTree(tc.size, 0)
 			require.NoError(t, err, "Creating tree: %+v", err)
 
 			key := GetKey(allkeys, tc.loc)
@@ -88,7 +88,7 @@ func TestGetNonMembership(t *testing.T) {
 	for name, tc := range cases {
 		tc := tc
 		t.Run("fast-" + name, func (t *testing.T)  {
-			tree, allkeys, err := BuildTree(tc.size)
+			tree, allkeys, err := BuildTree(tc.size, 0)
 			require.NoError(t, err, "Creating tree: %+v", err)
 			// Save version to enable fast cache
 			_, _, err = tree.SaveVersion()
@@ -100,7 +100,7 @@ func TestGetNonMembership(t *testing.T) {
 		})
 
 		t.Run("regular-" + name, func (t *testing.T)  {
-			tree, allkeys, err := BuildTree(tc.size)
+			tree, allkeys, err := BuildTree(tc.size, 0)
 			require.NoError(t, err, "Creating tree: %+v", err)
 			require.False(t, tree.IsFastCacheEnabled())
 
@@ -147,7 +147,7 @@ func BenchmarkGetNonMembership(b *testing.B) {
 			caseIdx := rand.Intn(len(cases))
 			tc := cases[caseIdx]
 
-			tree, allkeys, err := BuildTree(tc.size)
+			tree, allkeys, err := BuildTree(tc.size, 100000)
 			require.NoError(b, err, "Creating tree: %+v", err)
 			// Save version to enable fast cache
 			_, _, err = tree.SaveVersion()
@@ -167,7 +167,7 @@ func BenchmarkGetNonMembership(b *testing.B) {
 			caseIdx := rand.Intn(len(cases))
 			tc := cases[caseIdx]
 
-			tree, allkeys, err := BuildTree(tc.size)
+			tree, allkeys, err := BuildTree(tc.size, 100000)
 			require.NoError(b, err, "Creating tree: %+v", err)
 			require.False(b, tree.IsFastCacheEnabled())
 	
@@ -191,7 +191,7 @@ type Result struct {
 //
 // returns a range proof and the root hash of the tree
 func GenerateResult(size int, loc Where) (*Result, error) {
-	tree, allkeys, err := BuildTree(size)
+	tree, allkeys, err := BuildTree(size, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -262,8 +262,8 @@ func GetNonKey(allkeys [][]byte, loc Where) []byte {
 
 // BuildTree creates random key/values and stores in tree
 // returns a list of all keys in sorted order
-func BuildTree(size int) (itree *MutableTree, keys [][]byte, err error) {
-	tree, _ := NewMutableTree(db.NewMemDB(), 0)
+func BuildTree(size int, cacheSize int) (itree *MutableTree, keys [][]byte, err error) {
+	tree, _ := NewMutableTree(db.NewMemDB(), cacheSize)
 
 	// insert lots of info and store the bytes
 	keys = make([][]byte, size)
