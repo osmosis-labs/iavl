@@ -1,7 +1,6 @@
 package iavl
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
