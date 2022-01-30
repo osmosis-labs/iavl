@@ -765,6 +765,94 @@ func TestUpgradeStorageToFast_DbErrorEnableFastStorage_Failure(t *testing.T) {
 	require.False(t, tree.IsFastCacheEnabled())
 }
 
+func TestFastStorageReUpgradeProtection_ForceUpgrade_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	dbMock := mock.NewMockDB(ctrl)
+
+	// We are trying to test downgrade and re-upgrade protection
+	// We need to set up a state where latest fast storage version is of a lower version
+	// than tree version
+	const latestFastStorageVersionOnDisk = 1
+	const latestTreeVersion = latestFastStorageVersionOnDisk + 1
+
+	// Setup fake reverse iterator db to traverse root versions, called by ndb's getLatestVersion
+	db := db.NewMemDB()
+	expectedStorageVersion := []byte(fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(latestFastStorageVersionOnDisk))
+	db.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), expectedStorageVersion)
+	db.Set(rootKeyFormat.Key(latestTreeVersion), []byte("some root hash"))
+	rItr, err := db.ReverseIterator(rootKeyFormat.Key(1), rootKeyFormat.Key(latestTreeVersion + 1))
+	require.NoError(t, err)
+
+	batchMock := mock.NewMockBatch(ctrl)
+
+	dbMock.EXPECT().Get(gomock.Any()).Return(expectedStorageVersion, nil).Times(1)
+	dbMock.EXPECT().NewBatch().Return(batchMock).Times(2)
+	dbMock.EXPECT().ReverseIterator(gomock.Any(), gomock.Any()).Return(rItr, nil).Times(1) // called to get latest version
+
+	updatedExpectedStorageVersion := make([]byte, len(expectedStorageVersion))
+	copy(updatedExpectedStorageVersion, expectedStorageVersion)
+	updatedExpectedStorageVersion[len(updatedExpectedStorageVersion) - 1]++
+	batchMock.EXPECT().Set(metadataKeyFormat.Key([]byte(storageVersionKey)), updatedExpectedStorageVersion).Return(nil).Times(1)
+	batchMock.EXPECT().Write().Return(nil).Times(1)
+	batchMock.EXPECT().Close().Return(nil).Times(1)
+
+	tree, err := NewMutableTree(dbMock, 0)
+	require.Nil(t, err)
+	require.NotNil(t, tree)
+
+	// Pretend that we called Load and have the latest state in the tree
+	tree.version = latestTreeVersion
+	require.Equal(t, tree.ndb.getLatestVersion(), int64(latestTreeVersion))
+
+	// Ensure that the right branch of enableFastStorageAndCommitIfNotEnabled will be triggered
+	require.True(t, tree.IsFastCacheEnabled())
+	require.True(t, tree.ndb.shouldForceFastStorageUpdate())
+
+	enabled, err := tree.enableFastStorageAndCommitIfNotEnabled()
+	require.NoError(t, err)
+	require.True(t, enabled)
+}
+
+func TestFastStorageReUpgradeProtection_NoForceUpgrade_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	dbMock := mock.NewMockDB(ctrl)
+
+	// We are trying to test downgrade and re-upgrade protection
+	// We need to set up a state where latest fast storage version is equal to latest tree version
+	const latestFastStorageVersionOnDisk = 1
+	const latestTreeVersion = latestFastStorageVersionOnDisk
+
+	// Setup fake reverse iterator db to traverse root versions, called by ndb's getLatestVersion
+	db := db.NewMemDB()
+	expectedStorageVersion := []byte(fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(latestFastStorageVersionOnDisk))
+	db.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), expectedStorageVersion)
+	db.Set(rootKeyFormat.Key(latestTreeVersion), []byte("some root hash"))
+	rItr, err := db.ReverseIterator(rootKeyFormat.Key(1), rootKeyFormat.Key(latestTreeVersion + 1))
+	require.NoError(t, err)
+
+	batchMock := mock.NewMockBatch(ctrl)
+
+	dbMock.EXPECT().Get(gomock.Any()).Return(expectedStorageVersion, nil).Times(1)
+	dbMock.EXPECT().NewBatch().Return(batchMock).Times(1)
+	dbMock.EXPECT().ReverseIterator(gomock.Any(), gomock.Any()).Return(rItr, nil).Times(1) // called to get latest version
+
+	tree, err := NewMutableTree(dbMock, 0)
+	require.Nil(t, err)
+	require.NotNil(t, tree)
+
+	// Pretend that we called Load and have the latest state in the tree
+	tree.version = latestTreeVersion
+	require.Equal(t, tree.ndb.getLatestVersion(), int64(latestTreeVersion))
+
+	// Ensure that the right branch of enableFastStorageAndCommitIfNotEnabled will be triggered
+	require.True(t, tree.IsFastCacheEnabled())
+	require.False(t, tree.ndb.shouldForceFastStorageUpdate())
+
+	enabled, err := tree.enableFastStorageAndCommitIfNotEnabled()
+	require.NoError(t, err)
+	require.False(t, enabled)
+}
+
 func TestUpgradeStorageToFast_Integration_Upgraded_FastIterator_Success(t *testing.T) {
 	// Setup
 	tree, mirror := setupTreeAndMirrorForUpgrade(t)

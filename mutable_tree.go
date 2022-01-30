@@ -559,7 +559,7 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 
 // if nodeDB doesn't mark fast storage as enabled, enable it, and commit the update.
 func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) {
-	if tree.ndb.isFastStorageEnabled() {
+	if tree.ndb.isFastStorageEnabled() && !tree.ndb.shouldForceFastStorageUpdate() {
 		return false, nil
 	}
 
@@ -587,7 +587,7 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 		}
 	}()
 
-	itr := tree.ImmutableTree.Iterator(nil, nil, true)
+	itr := NewIterator(nil, nil, true, tree.ImmutableTree)
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
 		if err = tree.ndb.SaveFastNode(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
@@ -596,10 +596,6 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 	}
 
 	if err = itr.Error(); err != nil {
-		return err
-	}
-
-	if err = tree.ndb.batch.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(fastStorageVersionValue)); err != nil {
 		return err
 	}
 
