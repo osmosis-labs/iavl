@@ -62,6 +62,10 @@ var (
 	rootKeyFormat = NewKeyFormat('r', int64Size) // r<version>
 )
 
+var(
+	errInvalidFastStorageVersion = fmt.Sprintf("Fast storage version must be in the format <storage version>%s<latest fast cache version>", fastStorageVersionDelimiter)
+)
+
 type nodeDB struct {
 	mtx            sync.Mutex       // Read/write lock.
 	db             dbm.DB           // Persistent node storage.
@@ -218,15 +222,30 @@ func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
 	return ndb.saveFastNodeUnlocked(node)
 }
 
-func (ndb *nodeDB) setStorageVersionBatch(newVersion string) error {
-	if newVersion >= fastStorageVersionValue {
-		newVersion = newVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
+// setFastStorageVersionToBatch sets storage version to fast where the version is
+// 1.1.0-<version of the current live state>. Returns error if storage version is incorrect or on
+// db error, nil otherwise.
+func (ndb *nodeDB) setFastStorageVersionToBatch() error {
+	var newVersion string
+	if ndb.storageVersion >= fastStorageVersionValue {
+		// Storage version should be at index 0 and latest fast cache version at index 1
+		versions := strings.Split(ndb.storageVersion, fastStorageVersionDelimiter)
+
+		if len(versions) > 2 {
+			return errors.New(errInvalidFastStorageVersion)
+		}
+
+		newVersion = versions[0]
+	} else {
+		newVersion = fastStorageVersionValue
 	}
+
+	newVersion += fastStorageVersionDelimiter + strconv.Itoa(int(ndb.getLatestVersion()))
 
 	if err := ndb.batch.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
 		return err
 	}
-	ndb.storageVersion = string(newVersion)
+	ndb.storageVersion = newVersion
 	return nil
 }
 
