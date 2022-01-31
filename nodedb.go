@@ -254,11 +254,14 @@ func (ndb *nodeDB) getStorageVersion() string {
 }
 
 // Returns true if the upgrade to fast storage has occurred, false otherwise.
-// When the upgrade is succesful, fast storage on disk must match the latest tree.
 func (ndb *nodeDB) hasUpgradedToFastStorage() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 
+// Returns true if the upgrade to fast storage has occurred but it does not match the live state, false otherwise.
+// When the live state is not matched, we must force reupgrade.
+// We determine this by checking the version of the live state and the version of the live state wheb
+// fast storage was updated on disk the last time.
 func (ndb *nodeDB) shouldForceFastStorageUpdate() bool {
 	versions := strings.Split(ndb.storageVersion, fastStorageVersionDelimiter)
 
