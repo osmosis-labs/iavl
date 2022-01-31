@@ -263,8 +263,11 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 }
 
 // IsFastCacheEnabled returns true if fast cache is enabled, false otherwise.
+// For fast cache to be enabled, the following 2 conditions must be met:
+// 1. The tree is of the latest version.
+// 2. The underlying storage has been upgraded to fast cache
 func (t *ImmutableTree) IsFastCacheEnabled() bool {
-	return t.isLatestTreeVersion() && t.ndb.isFastStorageEnabled()
+	return t.isLatestTreeVersion() && t.ndb.hasUpgradedToFastStorage()
 }
 
 func (t *ImmutableTree) isLatestTreeVersion() bool {

@@ -562,7 +562,7 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 // from latest tree.
 func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) {
 	shouldForceUpdate := tree.ndb.shouldForceFastStorageUpdate()
-	isFastStorageEnabled := tree.ndb.isFastStorageEnabled() 
+	isFastStorageEnabled := tree.ndb.hasUpgradedToFastStorage() 
 
 	if  isFastStorageEnabled && !shouldForceUpdate {
 		return false, nil

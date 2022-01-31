@@ -151,7 +151,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 }
 
 func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
-	if !ndb.isFastStorageEnabled() {
+	if !ndb.hasUpgradedToFastStorage() {
 		return nil, errors.New("storage version is not fast")
 	}
 
@@ -253,7 +253,9 @@ func (ndb *nodeDB) getStorageVersion() string {
 	return ndb.storageVersion
 }
 
-func (ndb *nodeDB) isFastStorageEnabled() bool {
+// Returns true if the upgrade to fast storage has occurred, false otherwise.
+// When the upgrade is succesful, fast storage on disk must match the latest tree.
+func (ndb *nodeDB) hasUpgradedToFastStorage() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 

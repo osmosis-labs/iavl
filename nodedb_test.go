@@ -222,7 +222,7 @@ func TestIsFastStorageEnabled_True(t *testing.T) {
 	ndb.latestVersion = 100
 	ndb.storageVersion = fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
 
-	require.True(t, ndb.isFastStorageEnabled())
+	require.True(t, ndb.hasUpgradedToFastStorage())
 }
 
 func TestIsFastStorageEnabled_False(t *testing.T) {
