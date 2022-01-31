@@ -218,18 +218,6 @@ func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
 	return ndb.saveFastNodeUnlocked(node)
 }
 
-func (ndb *nodeDB) setStorageVersion(newVersion string) error {
-	if newVersion >= fastStorageVersionValue {
-		newVersion = newVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
-	}
-
-	if err := ndb.db.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
-		return err
-	}
-	ndb.storageVersion = string(newVersion)
-	return nil
-}
-
 func (ndb *nodeDB) setStorageVersionBatch(newVersion string) error {
 	if newVersion >= fastStorageVersionValue {
 		newVersion = newVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))

@@ -77,7 +77,7 @@ func TestSetStorageVersion_Success(t *testing.T) {
 	ndb := newNodeDB(db, 0, nil)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	err := ndb.setStorageVersion(expectedVersion)
+	err := ndb.setStorageVersionBatch(expectedVersion)
 	require.NoError(t, err)
 	require.Equal(t, expectedVersion + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.getLatestVersion())), string(ndb.getStorageVersion()))
 }
@@ -93,7 +93,7 @@ func TestSetStorageVersion_Failure_OldKept(t *testing.T) {
 	ndb := newNodeDB(dbMock, 0, nil)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	ndb.setStorageVersion(fastStorageVersionValue)
+	ndb.setStorageVersionBatch(fastStorageVersionValue)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 }
 
@@ -103,7 +103,7 @@ func TestSetStorageVersion_FastVersionFirst_VersionAppended(t *testing.T) {
 	ndb.storageVersion = fastStorageVersionValue
 	ndb.latestVersion = 100
 
-	err := ndb.setStorageVersion(fastStorageVersionValue)
+	err := ndb.setStorageVersionBatch(fastStorageVersionValue)
 	require.NoError(t, err)
 	require.Equal(t, fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion)), ndb.storageVersion)
 }
@@ -117,7 +117,7 @@ func TestSetStorageVersion_FastVersionSecond_VersionAppended(t *testing.T) {
 	storageVersionBytes := []byte(fastStorageVersionValue)
 	storageVersionBytes[len(fastStorageVersionValue) - 1]++ // increment last byte
 
-	err := ndb.setStorageVersion(string(storageVersionBytes))
+	err := ndb.setStorageVersionBatch(string(storageVersionBytes))
 	require.NoError(t, err)
 	require.Equal(t, string(storageVersionBytes) + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion)), ndb.storageVersion)
 }
