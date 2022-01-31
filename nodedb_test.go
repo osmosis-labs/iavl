@@ -87,6 +87,7 @@ func TestSetStorageVersion_DBFailure_OldKept(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	dbMock := mock.NewMockDB(ctrl)
 	batchMock := mock.NewMockBatch(ctrl)
+	rIterMock := mock.NewMockIterator(ctrl)
 	
 	expectedErrorMsg := "some db error"
 
@@ -95,19 +96,18 @@ func TestSetStorageVersion_DBFailure_OldKept(t *testing.T) {
 	dbMock.EXPECT().Get(gomock.Any()).Return([]byte(defaultStorageVersionValue), nil).Times(1)
 	dbMock.EXPECT().NewBatch().Return(batchMock).Times(1)
 
-	// Setup fake reverse iterator db to traverse root versions, called by ndb's getLatestVersion
-	db := db.NewMemDB()
-	db.Set(rootKeyFormat.Key(expectedFastCacheVersion), []byte("some root hash"))
-	rItr, err := db.ReverseIterator(rootKeyFormat.Key(1), rootKeyFormat.Key(expectedFastCacheVersion + 1))
-	require.NoError(t, err)
+	// rIterMock is used to get the latest version from disk. We are mocking that rIterMock returns latestTreeVersion from disk
+	rIterMock.EXPECT().Valid().Return(true).Times(1)
+	rIterMock.EXPECT().Key().Return(rootKeyFormat.Key(expectedFastCacheVersion)).Times(1)
+	rIterMock.EXPECT().Close().Return(nil).Times(1)
 
-	dbMock.EXPECT().ReverseIterator(gomock.Any(), gomock.Any()).Return(rItr, nil).Times(1)
+	dbMock.EXPECT().ReverseIterator(gomock.Any(), gomock.Any()).Return(rIterMock, nil).Times(1)
 	batchMock.EXPECT().Set([]byte(metadataKeyFormat.Key([]byte(storageVersionKey))), []byte(fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(expectedFastCacheVersion))).Return(errors.New(expectedErrorMsg)).Times(1)
 
 	ndb := newNodeDB(dbMock, 0, nil)
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
 
-	err = ndb.setFastStorageVersionToBatch()
+	err := ndb.setFastStorageVersionToBatch()
 	require.Error(t, err)
 	require.Equal(t, expectedErrorMsg, err.Error())
 	require.Equal(t, defaultStorageVersionValue, string(ndb.getStorageVersion()))
@@ -178,8 +178,7 @@ func TestSetStorageVersion_SameVersionTwice(t *testing.T) {
 	require.Equal(t, newStorageVersion, ndb.storageVersion)
 }
 
-// Test case where version is incorrect and has some extra stuff
-
+// Test case where version is incorrect and has some extra garbage at the end
 func TestShouldForceFastStorageUpdate_DefaultVersion_True(t *testing.T) {
 	db := db.NewMemDB()
 	ndb := newNodeDB(db, 0, nil)
