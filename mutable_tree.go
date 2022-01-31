@@ -557,10 +557,27 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 	return latestVersion, nil
 }
 
-// if nodeDB doesn't mark fast storage as enabled, enable it, and commit the update.
+// enableFastStorageAndCommitIfNotEnabled if nodeDB doesn't mark fast storage as enabled, enable it, and commit the update.
+// Checks whether the fast cache on disk matches latest live state. If not, deletes all existing fast nodes and repopulates them
+// from latest tree.
 func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) {
-	if tree.ndb.isFastStorageEnabled() && !tree.ndb.shouldForceFastStorageUpdate() {
+	shouldForceUpdate := tree.ndb.shouldForceFastStorageUpdate()
+	isFastStorageEnabled := tree.ndb.isFastStorageEnabled() 
+
+	if  isFastStorageEnabled && !shouldForceUpdate {
 		return false, nil
+	}
+
+	if isFastStorageEnabled && shouldForceUpdate {
+		// If there is a mismatch between which fast nodes are on disk and the live state due to temporary
+		// downgrade and subsequent re-upgrade, we cannot know for sure which fast nodes have been removed while downgraded,
+		// Therefore, there might exist stale fast nodes on disk. As a result, to avoid persisting the stale state, it might
+		// be worth to delete the fast nodes from disk.
+		fastItr := NewFastIterator(nil, nil, true, tree.ndb)
+		for ; fastItr.Valid(); fastItr.Next() {
+			tree.ndb.DeleteFastNode(fastItr.Key())
+		}
+		fastItr.Close()
 	}
 
 	if err := tree.enableFastStorageAndCommit(); err != nil {
