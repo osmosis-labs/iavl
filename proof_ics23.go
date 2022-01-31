@@ -31,11 +31,14 @@ If the key exists in the tree, this will return an error.
 */
 func (t *ImmutableTree) GetNonMembershipProof(key []byte) (proof *ics23.CommitmentProof, err error) {
 	var nonexist *ics23.NonExistenceProof
-	if t.IsFastCacheEnabled() {
-		nonexist, err = t.getNonMembershipProofFast(key)
-	} else {
-		nonexist, err = t.getNonMembershipProof(key)
-	}
+	// TODO: to investigate more and potentially enable fast storage
+	// introduced in: https://github.com/osmosis-labs/iavl/pull/12
+	// if t.IsFastCacheEnabled() {
+	// 	nonexist, err = t.getNonMembershipProofFast(key)
+	// } else {
+	// 	nonexist, err = t.getNonMembershipProof(key)
+	// }
+	nonexist, err = t.getNonMembershipProof(key)
 
 	if err != nil {
 		return nil, err
