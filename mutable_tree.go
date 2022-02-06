@@ -167,69 +167,9 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 		return t.ImmutableTree.Iterate(fn)
 	}
 
-	// We need to ensure that we iterate over saved and unsaved state in order.
-	// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
-	// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in order efficiently.
-	unsavedFastNodesToSort := make([]string, 0, len(t.unsavedFastNodeAdditions))
-
-	for _, fastNode := range t.unsavedFastNodeAdditions {
-		unsavedFastNodesToSort = append(unsavedFastNodesToSort, string(fastNode.key))
-	}
-
-	sort.Strings(unsavedFastNodesToSort)
-
-	itr := t.ImmutableTree.Iterator(nil, nil, true)
-	defer itr.Close()
-	nextUnsavedIdx := 0
-	for itr.Valid() && nextUnsavedIdx < len(unsavedFastNodesToSort) {
-		diskKeyStr := string(itr.Key())
-
-		if t.unsavedFastNodeRemovals[string(diskKeyStr)] != nil {
-			// If next fast node from disk is to be removed, skip it.
-			itr.Next()
-			continue
-		}
-
-		nextUnsavedKey := unsavedFastNodesToSort[nextUnsavedIdx]
-		nextUnsavedNode := t.unsavedFastNodeAdditions[nextUnsavedKey]
-
-		if diskKeyStr >= nextUnsavedKey {
-			// Unsaved node is next
-
-			if diskKeyStr == nextUnsavedKey {
-				// Unsaved update prevails over saved copy so we skip the copy from disk
-				itr.Next()
-			}
-
-			if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
-				return true
-			}
-
-			nextUnsavedIdx++
-		} else {
-			// Disk node is next
-			if fn(itr.Key(), itr.Value()) {
-				return true
-			}
-
-			itr.Next()
-		}
-	}
-
-	// if only nodes on disk are left, we can just iterate
-	for itr.Valid() {
+	itr := NewUnsavedFastIterator(nil, nil, true, t.ndb, t.unsavedFastNodeAdditions, t.unsavedFastNodeRemovals)
+	for ; itr.Valid(); itr.Next() {
 		if fn(itr.Key(), itr.Value()) {
-			return true
-		}
-		itr.Next()
-	}
-
-	// if only unsaved nodes are left, we can just iterate
-	for ; nextUnsavedIdx < len(unsavedFastNodesToSort); nextUnsavedIdx++ {
-		nextUnsavedKey := unsavedFastNodesToSort[nextUnsavedIdx]
-		nextUnsavedNode := t.unsavedFastNodeAdditions[nextUnsavedKey]
-
-		if fn(nextUnsavedNode.key, nextUnsavedNode.value) {
 			return true
 		}
 	}
@@ -237,9 +177,10 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 	return false
 }
 
-// Iterator is not supported and is therefore invalid for MutableTree. Get an ImmutableTree instead for a valid iterator.
+// Iterator returns an iterator over the mutable tree.
+// CONTRACT: no updates are made to the tree while an iterator is active.
 func (t *MutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
-	return NewIterator(start, end, ascending, nil) // this is an invalid iterator
+	return NewUnsavedFastIterator(start, end, ascending, t.ndb, t.unsavedFastNodeAdditions, t.unsavedFastNodeRemovals)
 }
 
 func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated bool) {
