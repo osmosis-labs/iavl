@@ -850,7 +850,7 @@ func TestFastStorageReUpgradeProtection_ForceUpgradeFirstTime_NoForceSecondTime_
 	// upgrade and then commits them all in the end.
 	updatedExpectedStorageVersion := make([]byte, len(expectedStorageVersion))
 	copy(updatedExpectedStorageVersion, expectedStorageVersion)
-	updatedExpectedStorageVersion[len(updatedExpectedStorageVersion) - 1]++
+	updatedExpectedStorageVersion[len(updatedExpectedStorageVersion)-1]++
 	batchMock.EXPECT().Delete(fastKeyFormat.Key(fastNodeKeyToDelete)).Return(nil).Times(1)
 	batchMock.EXPECT().Set(metadataKeyFormat.Key([]byte(storageVersionKey)), updatedExpectedStorageVersion).Return(nil).Times(1)
 	batchMock.EXPECT().Write().Return(nil).Times(1)

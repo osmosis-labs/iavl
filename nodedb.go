@@ -62,7 +62,7 @@ var (
 	rootKeyFormat = NewKeyFormat('r', int64Size) // r<version>
 )
 
-var(
+var (
 	errInvalidFastStorageVersion = fmt.Sprintf("Fast storage version must be in the format <storage version>%s<latest fast cache version>", fastStorageVersionDelimiter)
 )
 

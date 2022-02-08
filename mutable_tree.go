@@ -516,7 +516,7 @@ func (tree *MutableTree) IsUpgradeable() bool {
 // from latest tree.
 func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) {
 	shouldForceUpdate := tree.ndb.shouldForceFastStorageUpgrade()
-	isFastStorageEnabled := tree.ndb.hasUpgradedToFastStorage() 
+	isFastStorageEnabled := tree.ndb.hasUpgradedToFastStorage()
 
 	if !tree.IsUpgradeable() {
 		return false, nil
