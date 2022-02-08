@@ -185,7 +185,7 @@ func TestShouldForceFastStorageUpdate_DefaultVersion_True(t *testing.T) {
 	ndb.storageVersion = defaultStorageVersionValue
 	ndb.latestVersion = 100
 
-	require.False(t, ndb.shouldForceFastStorageUpdate())
+	require.False(t, ndb.shouldForceFastStorageUpgrade())
 }
 
 func TestShouldForceFastStorageUpdate_FastVersion_Greater_True(t *testing.T) {
@@ -194,7 +194,7 @@ func TestShouldForceFastStorageUpdate_FastVersion_Greater_True(t *testing.T) {
 	ndb.latestVersion = 100
 	ndb.storageVersion = fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion + 1))
 
-	require.True(t, ndb.shouldForceFastStorageUpdate())
+	require.True(t, ndb.shouldForceFastStorageUpgrade())
 }
 
 func TestShouldForceFastStorageUpdate_FastVersion_Smaller_True(t *testing.T) {
@@ -203,7 +203,7 @@ func TestShouldForceFastStorageUpdate_FastVersion_Smaller_True(t *testing.T) {
 	ndb.latestVersion = 100
 	ndb.storageVersion = fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion - 1))
 
-	require.True(t, ndb.shouldForceFastStorageUpdate())
+	require.True(t, ndb.shouldForceFastStorageUpgrade())
 }
 
 func TestShouldForceFastStorageUpdate_FastVersion_Match_False(t *testing.T) {
@@ -212,7 +212,7 @@ func TestShouldForceFastStorageUpdate_FastVersion_Match_False(t *testing.T) {
 	ndb.latestVersion = 100
 	ndb.storageVersion = fastStorageVersionValue + fastStorageVersionDelimiter + strconv.Itoa(int(ndb.latestVersion))
 
-	require.False(t, ndb.shouldForceFastStorageUpdate())
+	require.False(t, ndb.shouldForceFastStorageUpgrade())
 }
 
 func TestIsFastStorageEnabled_True(t *testing.T) {
@@ -230,7 +230,7 @@ func TestIsFastStorageEnabled_False(t *testing.T) {
 	ndb.latestVersion = 100
 	ndb.storageVersion = defaultStorageVersionValue
 
-	require.False(t, ndb.shouldForceFastStorageUpdate())
+	require.False(t, ndb.shouldForceFastStorageUpgrade())
 }
 
 func makeHashes(b *testing.B, seed int64) [][]byte {
