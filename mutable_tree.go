@@ -575,13 +575,6 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 
 	go func ()  {
 		timer := time.NewTimer(time.Second)
-		defer func ()  {
-			if !timer.Stop() {
-				fmt.Println("stop")
-				<-timer.C
-			}
-		}()
-
 		var m runtime.MemStats
 
 		hasTakenHeapProfile := false
@@ -610,9 +603,12 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 
 			select {
 			case <-timer.C:
-				fmt.Println("reset")
 				timer.Reset(time.Second)
 			case <-done:
+				if !timer.Stop() {
+					fmt.Println("stop")
+					<-timer.C
+				}
 				fmt.Println("done")
 				return
 			}
@@ -644,6 +640,8 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 		fmt.Println("commit error")
 		return err
 	}
+
+	fmt.Println("finished clean")
 	return nil
 }
 
