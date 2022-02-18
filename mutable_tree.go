@@ -569,17 +569,13 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 
 	done := make(chan struct{})
 	defer func() {
-		fmt.Println("signaling done")
 		done <- struct{}{}
 		close(done)
-		fmt.Println("closed")
 	}()
 
 	go func ()  {
 		timer := time.NewTimer(time.Second)
 		var m runtime.MemStats
-
-		hasTakenHeapProfile := false
 
 		for {
 			// Sample the current memory usage
@@ -588,19 +584,7 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 			if m.Alloc > 4 * 1024 * 1024 * 1024 {
 				// If we are using more than 4GB of memory, we should trigger garbage collection
 				// to free up some memory.
-				fmt.Println("gc")
 				runtime.GC()
-			}
-
-			if !hasTakenHeapProfile && m.Alloc > 4 * 1024 * 1024 * 1024 {
-				// If we are using more than 8GB of memory, we should write a pprof sample
-				fmt.Println("pprof heap")
-				time := time.Now()
-				heapProfilePath := "/tmp/heap_profile" + time.String() + ".pprof"
-				heapFile, _ := os.Create(heapProfilePath)
-				pprof.WriteHeapProfile(heapFile)
-				heapFile.Close()
-				hasTakenHeapProfile = true
 			}
 
 			select {
@@ -608,10 +592,8 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 				timer.Reset(time.Second)
 			case <-done:
 				if !timer.Stop() {
-					fmt.Println("stop")
 					<-timer.C
 				}
-				fmt.Println("done")
 				return
 			}
 		}
@@ -621,29 +603,21 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
 		if err = tree.ndb.SaveFastNodeNoCache(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
-			fmt.Println("save error")
 			return err
 		}
 	}
 
-	fmt.Println("finished")
-
 	if err = itr.Error(); err != nil {
-		fmt.Println("itr error")
 		return err
 	}
 
 	if err = tree.ndb.setFastStorageVersionToBatch(); err != nil {
-		fmt.Println("save version error")
 		return err
 	}
 
 	if err = tree.ndb.Commit(); err != nil {
-		fmt.Println("commit error")
 		return err
 	}
-
-	fmt.Println("finished clean")
 	return nil
 }
 
