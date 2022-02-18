@@ -532,10 +532,12 @@ func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) 
 		// Therefore, there might exist stale fast nodes on disk. As a result, to avoid persisting the stale state, it might
 		// be worth to delete the fast nodes from disk.
 		fastItr := NewFastIterator(nil, nil, true, tree.ndb)
+		defer fastItr.Close()
 		for ; fastItr.Valid(); fastItr.Next() {
-			tree.ndb.DeleteFastNode(fastItr.Key())
+			if err := tree.ndb.DeleteFastNode(fastItr.Key()); err != nil {
+				return false, err
+			}
 		}
-		fastItr.Close()
 	}
 
 	// Force garbage collection before we proceed to enabling fast storage.
@@ -590,7 +592,7 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 				runtime.GC()
 			}
 
-			if !hasTakenHeapProfile && m.Alloc > 8 * 1024 * 1024 * 1024 {
+			if !hasTakenHeapProfile && m.Alloc > 4 * 1024 * 1024 * 1024 {
 				// If we are using more than 8GB of memory, we should write a pprof sample
 				fmt.Println("pprof heap")
 				time := time.Now()
