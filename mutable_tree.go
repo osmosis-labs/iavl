@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -534,6 +538,9 @@ func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) 
 		fastItr.Close()
 	}
 
+	// Force garbage collection before we proceed to enabling fast storage.
+	runtime.GC()
+
 	if err := tree.enableFastStorageAndCommit(); err != nil {
 		tree.ndb.storageVersion = defaultStorageVersionValue
 		return false, err
@@ -558,10 +565,58 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 		}
 	}()
 
+	done := make(chan struct{})
+	defer func() {
+		done <- struct{}{}
+		close(done)
+	}()
+
+	go func ()  {
+		timer := time.NewTimer(time.Second)
+		defer func ()  {
+			if !timer.Stop() {
+				<-timer.C
+			}
+		}()
+
+		var m runtime.MemStats
+
+		hasTakenHeapProfile := false
+
+		for {
+			// Sample the current memory usage
+			runtime.ReadMemStats(&m)
+
+			if m.Alloc > 4 * 1024 * 1024 * 1024 {
+				// If we are using more than 4GB of memory, we should trigger garbage collection
+				// to free up some memory.
+				runtime.GC()
+				return
+			}
+
+			if !hasTakenHeapProfile && m.Alloc > 8 * 1024 * 1024 * 1024 {
+				// If we are using more than 8GB of memory, we should write a pprof sample
+				time := time.Now()
+				heapProfilePath := "/tmp/heap_profile" + time.String() + ".pprof"
+				heapFile, _ := os.Create(heapProfilePath)
+				pprof.WriteHeapProfile(heapFile)
+				heapFile.Close()
+				hasTakenHeapProfile = true
+			}
+
+			select {
+			case <-timer.C:
+				timer.Reset(time.Second)
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	itr := NewIterator(nil, nil, true, tree.ImmutableTree)
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
-		if err = tree.ndb.SaveFastNode(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
+		if err = tree.ndb.SaveFastNodeNoCache(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
 			return err
 		}
 	}
