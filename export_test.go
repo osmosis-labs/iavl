@@ -4,10 +4,10 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	db "github.com/tendermint/tm-db"
 )
 
@@ -265,14 +265,20 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 	exporter := itree.Export()
 	defer exporter.Close()
 
-	err = tree.DeleteVersion(2)
-	require.Error(t, err)
-	err = tree.DeleteVersion(1)
-	require.NoError(t, err)
+	testWithCancel(t, true, 500 * time.Millisecond, func() {
+		err = tree.DeleteVersion(2)
+	})
 
-	exporter.Close()
-	err = tree.DeleteVersion(2)
-	require.NoError(t, err)
+	testWithCancel(t, false, 500 * time.Millisecond, func() {
+		err = tree.DeleteVersion(1)
+		require.NoError(t, err)
+	})
+
+	testWithCancel(t, false, 10 * time.Second, func() {
+		exporter.Close()
+		err = tree.DeleteVersion(2)
+		require.NoError(t, err)
+	})
 }
 
 func BenchmarkExport(b *testing.B) {

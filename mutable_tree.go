@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cosmos/iavl/logger"
+	
 	"github.com/pkg/errors"
-
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -555,13 +556,13 @@ func (tree *MutableTree) enableFastStorageAndCommitLocked() error {
 }
 
 func (tree *MutableTree) enableFastStorageAndCommit() error {
-	debug("enabling fast storage, might take a while.")
+	logger.Debug("enabling fast storage, might take a while.")
 	var err error
 	defer func() {
 		if err != nil {
-			debug("failed to enable fast storage: %v\n", err)
+			logger.Debug("failed to enable fast storage: %v\n", err)
 		} else {
-			debug("fast storage is enabled.")
+			logger.Debug("fast storage is enabled.")
 		}
 	}()
 
@@ -722,13 +723,13 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	if tree.root == nil {
 		// There can still be orphans, for example if the root is the node being
 		// removed.
-		debug("SAVE EMPTY TREE %v\n", version)
+		logger.Debug("SAVE EMPTY TREE %v\n", version)
 		tree.ndb.SaveOrphans(version, tree.orphans)
 		if err := tree.ndb.SaveEmptyRoot(version); err != nil {
 			return nil, 0, err
 		}
 	} else {
-		debug("SAVE TREE %v\n", version)
+		logger.Debug("SAVE TREE %v\n", version)
 		tree.ndb.SaveBranch(tree.root)
 		tree.ndb.SaveOrphans(version, tree.orphans)
 		if err := tree.ndb.SaveRoot(tree.root, version); err != nil {
@@ -850,7 +851,7 @@ func (tree *MutableTree) SetInitialVersion(version uint64) {
 // DeleteVersions deletes a series of versions from the MutableTree.
 // Deprecated: please use DeleteVersionsRange instead.
 func (tree *MutableTree) DeleteVersions(versions ...int64) error {
-	debug("DELETING VERSIONS: %v\n", versions)
+	logger.Debug("DELETING VERSIONS: %v\n", versions)
 
 	if len(versions) == 0 {
 		return nil
@@ -903,7 +904,7 @@ func (tree *MutableTree) DeleteVersionsRange(fromVersion, toVersion int64) error
 // DeleteVersion deletes a tree version from disk. The version can then no
 // longer be accessed.
 func (tree *MutableTree) DeleteVersion(version int64) error {
-	debug("DELETE VERSION: %d\n", version)
+	logger.Debug("DELETE VERSION: %d\n", version)
 
 	if err := tree.deleteVersion(version); err != nil {
 		return err

@@ -3,10 +3,12 @@ package iavl
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"math/rand"
 
@@ -337,5 +339,27 @@ func benchmarkImmutableAvlTreeWithDB(b *testing.B, db dbm.DB) {
 		if i%100 == 99 {
 			t.SaveVersion()
 		}
+	}
+}
+
+func testWithCancel(t *testing.T, shouldTimeout bool, timeout time.Duration, fnUnderTest func()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		fnUnderTest()
+		cancel()
+	}()
+
+	select {
+	case <-time.After(timeout):
+		if !shouldTimeout {
+			t.Error("timed out when should not have")
+		}
+	case <-ctx.Done():
+		if shouldTimeout {
+			t.Error("did not timeout when should have")
+		}
+		return
 	}
 }
