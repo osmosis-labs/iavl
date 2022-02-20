@@ -565,6 +565,9 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 		}
 	}()
 
+	// We start a new thread to keep on checking if we are above 4GB, and if so garbage collect.
+	// This thread only lasts during the fast node migration.
+	// This is done to keep RAM usage down.
 	done := make(chan struct{})
 	defer func() {
 		done <- struct{}{}
