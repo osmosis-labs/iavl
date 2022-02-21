@@ -66,6 +66,7 @@ var (
 	errInvalidFastStorageVersion = fmt.Sprintf("Fast storage version must be in the format <storage version>%s<latest fast cache version>", fastStorageVersionDelimiter)
 )
 
+
 type nodeDB struct {
 	mtx            sync.Mutex       // Read/write lock.
 	db             dbm.DB           // Persistent node storage.
@@ -84,7 +85,108 @@ type nodeDB struct {
 	fastNodeCacheQueue *list.List               // LRU queue of cache elements. Used for deletion.
 }
 
-func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
+func (ndb *nodeDB) getOpts() Options {
+	return ndb.opts
+}
+
+func (ndb *nodeDB) setOpts(options Options) {
+	ndb.opts = options
+}
+
+func (ndb *nodeDB) getBatch() dbm.Batch {
+	return ndb.batch
+}
+
+func (ndb *nodeDB) setBatch(batch dbm.Batch) {
+	ndb.batch = batch
+}
+
+func (ndb *nodeDB) getDb() dbm.DB {
+	return ndb.db
+}
+
+func (ndb *nodeDB) setDb(db dbm.DB) {
+	ndb.db = db
+}
+
+func (ndb *nodeDB) setStorageVersion(version string){
+	ndb.storageVersion = version
+}
+
+func (ndb *nodeDB) getFastNodeCache() map[string]*list.Element{
+	return ndb.fastNodeCache
+}
+
+type NodeDB interface {
+	getFastNodeCache() map[string]*list.Element
+	setStorageVersion(version string)
+	getDb() dbm.DB
+	setDb(db dbm.DB)
+	getOpts() Options
+	setOpts(options Options)
+	GetNode(hash []byte) *Node
+	GetFastNode(key []byte) (*FastNode, error)
+	SaveNode(node *Node)
+	SaveFastNode(node *FastNode) error
+	SaveFastNodeNoCache(node *FastNode) error
+	setFastStorageVersionToBatch() error
+	getStorageVersion() string
+	hasUpgradedToFastStorage() bool
+	shouldForceFastStorageUpgrade() bool
+	saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) error
+	Has(hash []byte) (bool, error)
+	SaveBranch(node *Node) []byte
+	resetBatch() error
+	DeleteVersion(version int64, checkLatestVersion bool) error
+	DeleteVersionsFrom(version int64) error
+	DeleteVersionsRange(fromVersion, toVersion int64) error
+	DeleteFastNode(key []byte) error
+	deleteNodesFrom(version int64, hash []byte) error
+	SaveOrphans(version int64, orphans map[string]int64)
+	saveOrphan(hash []byte, fromVersion, toVersion int64)
+	deleteOrphans(version int64) error
+	nodeKey(hash []byte) []byte
+	fastNodeKey(key []byte) []byte
+	orphanKey(fromVersion, toVersion int64, hash []byte) []byte
+	rootKey(version int64) []byte
+	getLatestVersion() int64
+	updateLatestVersion(version int64)
+	resetLatestVersion(version int64)
+	getPreviousVersion(version int64) int64
+	deleteRoot(version int64, checkLatestVersion bool) error
+	traverseOrphans(fn func(keyWithPrefix, v []byte) error) error
+	traverseFastNodes(fn func(k, v []byte) error) error
+	traverseOrphansVersion(version int64, fn func(k, v []byte) error) error
+	traverse(fn func(key, value []byte) error) error
+	traverseRange(start []byte, end []byte, fn func(k, v []byte) error) error
+	traversePrefix(prefix []byte, fn func(k, v []byte) error) error
+	getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error)
+	uncacheNode(hash []byte)
+	cacheNode(node *Node)
+	uncacheFastNode(key []byte)
+	cacheFastNode(node *FastNode)
+	Commit() error
+	HasRoot(version int64) (bool, error)
+	getRoot(version int64) ([]byte, error)
+	getRoots() (map[int64][]byte, error)
+	SaveRoot(root *Node, version int64) error
+	SaveEmptyRoot(version int64) error
+	saveRoot(hash []byte, version int64) error
+	incrVersionReaders(version int64)
+	decrVersionReaders(version int64)
+	leafNodes() ([]*Node, error)
+	nodes() ([]*Node, error)
+	orphans() ([][]byte, error)
+	roots() map[int64][]byte
+	size() int
+	traverseNodes(fn func(hash []byte, node *Node) error) error
+	String() (string, error)
+	getBatch() dbm.Batch
+	setBatch(batch dbm.Batch)
+}
+
+
+func NewNodeDb(db dbm.DB, cacheSize int, opts *Options) NodeDB {
 	if opts == nil {
 		o := DefaultOptions()
 		opts = &o
@@ -1081,3 +1183,4 @@ func (ndb *nodeDB) String() (string, error) {
 
 	return "-" + "\n" + str + "-", nil
 }
+

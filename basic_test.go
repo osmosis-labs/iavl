@@ -20,6 +20,15 @@ func TestBasic(t *testing.T) {
 	if up {
 		t.Error("Did not expect an update (should have been create)")
 	}
+	tree.SaveVersion()
+	tree.SaveVersion()
+	err = tree.DeleteVersion(int64(1))
+	if err != nil{
+		t.Errorf("should lol")
+	}
+	proof, rangeProof, err := tree.GetVersionedWithProof([]byte("1"), int64(1))
+	print(proof)
+	print(rangeProof)
 	up = tree.Set([]byte("2"), []byte("two"))
 	if up {
 		t.Error("Did not expect an update (should have been create)")
@@ -423,7 +432,7 @@ func TestIterateRange(t *testing.T) {
 
 func TestPersistence(t *testing.T) {
 	db := db.NewMemDB()
-
+	ndb := NewNodeDb(db, 0, nil)
 	// Create some random key value pairs
 	records := make(map[string]string)
 	for i := 0; i < 10000; i++ {
@@ -431,7 +440,7 @@ func TestPersistence(t *testing.T) {
 	}
 
 	// Construct some tree and save it
-	t1, err := NewMutableTree(db, 0)
+	t1, err := NewMutableTree(ndb)
 	require.NoError(t, err)
 	for key, value := range records {
 		t1.Set([]byte(key), []byte(value))
@@ -439,7 +448,7 @@ func TestPersistence(t *testing.T) {
 	t1.SaveVersion()
 
 	// Load a tree
-	t2, err := NewMutableTree(db, 0)
+	t2, err := NewMutableTree(ndb)
 	require.NoError(t, err)
 	t2.Load()
 	for key, value := range records {
@@ -483,7 +492,8 @@ func TestProof(t *testing.T) {
 
 func TestTreeProof(t *testing.T) {
 	db := db.NewMemDB()
-	tree, err := NewMutableTree(db, 100)
+	ndb := NewNodeDb(db, 100, nil)
+	tree, err := NewMutableTree(ndb)
 	require.NoError(t, err)
 	assert.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hex.EncodeToString(tree.Hash()))
 

@@ -5,11 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/cosmos/iavl"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/iavl"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -112,8 +112,9 @@ func ReadTree(dir string, version int, prefix []byte) (*iavl.MutableTree, error)
 	if len(prefix) != 0 {
 		db = dbm.NewPrefixDB(db, prefix)
 	}
+	ndb := iavl.NewNodeDb(db, DefaultCacheSize, nil)
 
-	tree, err := iavl.NewMutableTree(db, DefaultCacheSize)
+	tree, err := iavl.NewMutableTree(ndb)
 	if err != nil {
 		return nil, err
 	}

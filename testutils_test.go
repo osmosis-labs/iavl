@@ -1,4 +1,4 @@
-// nolint:errcheck
+//// nolint:errcheck
 package iavl
 
 import (
@@ -41,7 +41,8 @@ func b2i(bz []byte) int {
 
 // Construct a MutableTree
 func getTestTree(cacheSize int) (*MutableTree, error) {
-	return NewMutableTreeWithOpts(dbm.NewMemDB(), cacheSize, nil)
+	ndb := NewNodeDb(dbm.NewMemDB(), cacheSize, nil)
+	return NewMutableTreeWithOpts(ndb)
 }
 
 // Convenience for a new node
@@ -313,8 +314,8 @@ func benchmarkImmutableAvlTreeWithDB(b *testing.B, db dbm.DB) {
 	defer db.Close()
 
 	b.StopTimer()
-
-	t, err := NewMutableTree(db, 100000)
+	ndb:= NewNodeDb(db, 100000, nil)
+	t, err := NewMutableTree(ndb)
 	require.NoError(b, err)
 
 	value := []byte{}

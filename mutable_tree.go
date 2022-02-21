@@ -33,20 +33,19 @@ type MutableTree struct {
 	allRootLoaded            bool                   // Whether all roots are loaded or not(by LazyLoadVersion)
 	unsavedFastNodeAdditions map[string]*FastNode   // FastNodes that have not yet been saved to disk
 	unsavedFastNodeRemovals  map[string]interface{} // FastNodes that have not yet been removed from disk
-	ndb                      *nodeDB
+	ndb                      NodeDB
 
 	mtx sync.RWMutex // versions Read/write lock.
 }
 
 // NewMutableTree returns a new tree with the specified cache size and datastore.
-func NewMutableTree(db dbm.DB, cacheSize int) (*MutableTree, error) {
-	return NewMutableTreeWithOpts(db, cacheSize, nil)
+func NewMutableTree(nodeDB NodeDB) (*MutableTree, error) {
+	return NewMutableTreeWithOpts(nodeDB)
 }
 
 // NewMutableTreeWithOpts returns a new tree with the specified options.
-func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTree, error) {
-	ndb := newNodeDB(db, cacheSize, opts)
-	head := &ImmutableTree{ndb: ndb}
+func  NewMutableTreeWithOpts(nodeDB NodeDB) (*MutableTree, error) {
+	head := &ImmutableTree{ndb: nodeDB}
 
 	return &MutableTree{
 		ImmutableTree:            head,
@@ -56,7 +55,7 @@ func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTr
 		allRootLoaded:            false,
 		unsavedFastNodeAdditions: make(map[string]*FastNode),
 		unsavedFastNodeRemovals:  make(map[string]interface{}),
-		ndb:                      ndb,
+		ndb:                      nodeDB,
 	}, nil
 }
 
@@ -449,9 +448,9 @@ func (tree *MutableTree) LoadVersion(targetVersion int64) (int64, error) {
 			targetVersion, latestVersion)
 	}
 
-	if firstVersion > 0 && firstVersion < int64(tree.ndb.opts.InitialVersion) {
+	if firstVersion > 0 && firstVersion < int64(tree.ndb.getOpts().InitialVersion) {
 		return latestVersion, fmt.Errorf("initial version set to %v, but found earlier version %v",
-			tree.ndb.opts.InitialVersion, firstVersion)
+			tree.ndb.getOpts().InitialVersion, firstVersion)
 	}
 
 	t := &ImmutableTree{
@@ -542,7 +541,7 @@ func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) 
 	runtime.GC()
 
 	if err := tree.enableFastStorageAndCommit(); err != nil {
-		tree.ndb.storageVersion = defaultStorageVersionValue
+		tree.ndb.setStorageVersion(defaultStorageVersionValue)
 		return false, err
 	}
 	return true, nil
@@ -669,7 +668,7 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 	if tree.VersionExists(version) {
 		if tree.IsFastCacheEnabled() {
 			fastNode, _ := tree.ndb.GetFastNode(key)
-			if fastNode == nil && version == tree.ndb.latestVersion {
+			if fastNode == nil && version == tree.ndb.getLatestVersion() {
 				return nil
 			}
 
@@ -691,8 +690,8 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 // the tree. Returns the hash and new version number.
 func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	version := tree.version + 1
-	if version == 1 && tree.ndb.opts.InitialVersion > 0 {
-		version = int64(tree.ndb.opts.InitialVersion)
+	if version == 1 && tree.ndb.getOpts().InitialVersion > 0 {
+		version = int64(tree.ndb.getOpts().InitialVersion)
 	}
 
 	if tree.VersionExists(version) {
@@ -847,7 +846,9 @@ func (tree *MutableTree) deleteVersion(version int64) error {
 // It is only used during the initial SaveVersion() call for a tree with no other versions,
 // and is otherwise ignored.
 func (tree *MutableTree) SetInitialVersion(version uint64) {
-	tree.ndb.opts.InitialVersion = version
+	newOptions := tree.ndb.getOpts()
+	newOptions.InitialVersion = version
+	tree.ndb.setOpts(newOptions)
 }
 
 // DeleteVersions deletes a series of versions from the MutableTree.

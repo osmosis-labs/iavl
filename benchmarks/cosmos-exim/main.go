@@ -91,7 +91,8 @@ func runExport(dbPath string) (int64, map[string][]*iavl.ExportNode, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	tree, err := iavl.NewMutableTree(tmdb.NewPrefixDB(ldb, []byte("s/k:main/")), 0)
+	ndb := iavl.NewNodeDb(tmdb.NewPrefixDB(ldb, []byte("s/k:main/")), 0, nil)
+	tree, err := iavl.NewMutableTree(ndb)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -106,7 +107,8 @@ func runExport(dbPath string) (int64, map[string][]*iavl.ExportNode, error) {
 	totalStats := Stats{}
 	for _, name := range stores {
 		db := tmdb.NewPrefixDB(ldb, []byte("s/k:"+name+"/"))
-		tree, err := iavl.NewMutableTree(db, 0)
+		ndb := iavl.NewNodeDb(db, 0, nil)
+		tree, err := iavl.NewMutableTree(ndb)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -171,7 +173,8 @@ func runImport(version int64, exports map[string][]*iavl.ExportNode) error {
 		if err != nil {
 			return err
 		}
-		newTree, err := iavl.NewMutableTree(newDB, 0)
+		ndb := iavl.NewNodeDb(newDB, 0, nil)
+		newTree, err := iavl.NewMutableTree(ndb)
 		if err != nil {
 			return err
 		}

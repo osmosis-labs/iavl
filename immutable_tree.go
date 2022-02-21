@@ -15,7 +15,7 @@ import (
 // IAVL which would also be modified.
 type ImmutableTree struct {
 	root    *Node
-	ndb     *nodeDB
+	ndb     NodeDB
 	version int64
 }
 
@@ -27,7 +27,7 @@ func NewImmutableTree(db dbm.DB, cacheSize int) *ImmutableTree {
 	}
 	return &ImmutableTree{
 		// NodeDB-backed Tree.
-		ndb: newNodeDB(db, cacheSize, nil),
+		ndb: NewNodeDb(db, cacheSize, nil),
 	}
 }
 
@@ -35,7 +35,7 @@ func NewImmutableTree(db dbm.DB, cacheSize int) *ImmutableTree {
 func NewImmutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) *ImmutableTree {
 	return &ImmutableTree{
 		// NodeDB-backed Tree.
-		ndb: newNodeDB(db, cacheSize, opts),
+		ndb: NewNodeDb(db, cacheSize, opts),
 	}
 }
 
@@ -176,7 +176,7 @@ func (t *ImmutableTree) Get(key []byte) []byte {
 		// If the tree is of the latest version and fast node is not in the tree
 		// then the regular node is not in the tree either because fast node
 		// represents live state.
-		if t.version == t.ndb.latestVersion {
+		if t.version == t.ndb.getLatestVersion() {
 			debug("latest version with no fast node for key: %X. The node must not exist, return nil. Tree version: %d\n", key, t.version)
 			return nil
 		}

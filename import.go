@@ -2,7 +2,6 @@ package iavl
 
 import (
 	"bytes"
-
 	"github.com/pkg/errors"
 
 	db "github.com/tendermint/tm-db"
@@ -37,8 +36,8 @@ func newImporter(tree *MutableTree, version int64) (*Importer, error) {
 	if version < 0 {
 		return nil, errors.New("imported version cannot be negative")
 	}
-	if tree.ndb.latestVersion > 0 {
-		return nil, errors.Errorf("found database at version %d, must be 0", tree.ndb.latestVersion)
+	if tree.ndb.getLatestVersion() > 0 {
+		return nil, errors.Errorf("found database at version %d, must be 0", tree.ndb.getLatestVersion())
 	}
 	if !tree.IsEmpty() {
 		return nil, errors.New("tree must be empty")
@@ -47,7 +46,7 @@ func newImporter(tree *MutableTree, version int64) (*Importer, error) {
 	return &Importer{
 		tree:    tree,
 		version: version,
-		batch:   tree.ndb.db.NewBatch(),
+		batch:   tree.ndb.getDb().NewBatch(),
 		stack:   make([]*Node, 0, 8),
 	}, nil
 }
@@ -136,7 +135,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 			return err
 		}
 		i.batch.Close()
-		i.batch = i.tree.ndb.db.NewBatch()
+		i.batch = i.tree.ndb.getDb().NewBatch()
 		i.batchSize = 0
 	}
 

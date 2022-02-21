@@ -20,7 +20,7 @@ type FastIterator struct {
 
 	err error
 
-	ndb *nodeDB
+	ndb NodeDB
 
 	nextFastNode *FastNode
 
@@ -29,7 +29,7 @@ type FastIterator struct {
 
 var _ dbm.Iterator = &FastIterator{}
 
-func NewFastIterator(start, end []byte, ascending bool, ndb *nodeDB) *FastIterator {
+func NewFastIterator(start, end []byte, ascending bool, ndb NodeDB) *FastIterator {
 	iter := &FastIterator{
 		start:        start,
 		end:          end,

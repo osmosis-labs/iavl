@@ -26,7 +26,7 @@ type UnsavedFastIterator struct {
 
 	err error
 
-	ndb *nodeDB
+	ndb NodeDB
 
 	unsavedFastNodeAdditions map[string]*FastNode
 
@@ -45,7 +45,7 @@ type UnsavedFastIterator struct {
 
 var _ dbm.Iterator = &UnsavedFastIterator{}
 
-func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsavedFastNodeAdditions map[string]*FastNode, unsavedFastNodeRemovals map[string]interface{}) *UnsavedFastIterator {
+func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb NodeDB, unsavedFastNodeAdditions map[string]*FastNode, unsavedFastNodeRemovals map[string]interface{}) *UnsavedFastIterator {
 
 	iter := &UnsavedFastIterator{
 		start:                    start,
@@ -103,7 +103,7 @@ func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsa
 		return iter
 	}
 
-	// Move to the first elemenet
+	// Move to the first element
 	iter.Next()
 
 	return iter
