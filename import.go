@@ -26,7 +26,7 @@ type Importer struct {
 	version   int64
 	batch     db.Batch
 	batchSize uint32
-	stack     []*Node
+	stack     []*TreeNode
 }
 
 // newImporter creates a new Importer for an empty MutableTree.
@@ -48,7 +48,7 @@ func newImporter(tree *MutableTree, version int64) (*Importer, error) {
 		tree:    tree,
 		version: version,
 		batch:   tree.ndb.db.NewBatch(),
-		stack:   make([]*Node, 0, 8),
+		stack:   make([]*TreeNode, 0, 8),
 	}, nil
 }
 
@@ -77,7 +77,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 			exportNode.Version, i.version)
 	}
 
-	node := &Node{
+	node := &TreeNode{
 		key:     exportNode.Key,
 		value:   exportNode.Value,
 		version: exportNode.Version,

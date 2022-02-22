@@ -440,10 +440,10 @@ func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string
 		fastNode, err := DeserializeFastNode(key, v)
 		require.Nil(t, err)
 
-		mirrorVal := mirror[string(fastNode.key)]
+		mirrorVal := mirror[string(fastNode.GetKey())]
 
 		require.NotNil(t, mirrorVal)
-		require.Equal(t, []byte(mirrorVal), fastNode.value)
+		require.Equal(t, []byte(mirrorVal), fastNode.GetValue())
 		return nil
 	})
 	require.NoError(t, err)

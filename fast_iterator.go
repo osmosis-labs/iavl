@@ -22,7 +22,7 @@ type FastIterator struct {
 
 	ndb *nodeDB
 
-	nextFastNode *FastNode
+	nextFastNode Node
 
 	fastIterator dbm.Iterator
 }
@@ -82,7 +82,7 @@ func (iter *FastIterator) Valid() bool {
 // Key implements dbm.Iterator
 func (iter *FastIterator) Key() []byte {
 	if iter.valid {
-		return iter.nextFastNode.key
+		return iter.nextFastNode.GetKey()
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (iter *FastIterator) Key() []byte {
 // Value implements dbm.Iterator
 func (iter *FastIterator) Value() []byte {
 	if iter.valid {
-		return iter.nextFastNode.value
+		return iter.nextFastNode.GetValue()
 	}
 	return nil
 }

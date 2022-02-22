@@ -21,7 +21,7 @@ type traversal struct {
 
 var errIteratorNilTreeGiven = errors.New("iterator must be created with an immutable tree but the tree was nil")
 
-func (node *Node) newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
+func (node *TreeNode) newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
 	return &traversal{
 		tree:         tree,
 		start:        start,
@@ -38,19 +38,19 @@ func (node *Node) newTraversal(tree *ImmutableTree, start, end []byte, ascending
 // children should be traversed. When delayed is set to false, the delayedNode is
 // already have expanded, and it could be immediately returned.
 type delayedNode struct {
-	node    *Node
+	node    *TreeNode
 	delayed bool
 }
 
 type delayedNodes []delayedNode
 
-func (nodes *delayedNodes) pop() (*Node, bool) {
+func (nodes *delayedNodes) pop() (*TreeNode, bool) {
 	node := (*nodes)[len(*nodes)-1]
 	*nodes = (*nodes)[:len(*nodes)-1]
 	return node.node, node.delayed
 }
 
-func (nodes *delayedNodes) push(node *Node, delayed bool) {
+func (nodes *delayedNodes) push(node *TreeNode, delayed bool) {
 	*nodes = append(*nodes, delayedNode{node, delayed})
 }
 
@@ -89,7 +89,7 @@ func (nodes *delayedNodes) length() int {
 // 1. If the traversal is postorder, the current node will be append to the `delayedNodes` with `delayed`
 //    set to false, and immediately returned at the subsequent call of `traversal.next()` at the last line.
 // 2. If the traversal is preorder, the current node will be returned.
-func (t *traversal) next() *Node {
+func (t *traversal) next() *TreeNode {
 	// End of traversal.
 	if t.delayedNodes.length() == 0 {
 		return nil

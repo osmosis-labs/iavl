@@ -45,20 +45,20 @@ func getTestTree(cacheSize int) (*MutableTree, error) {
 }
 
 // Convenience for a new node
-func N(l, r interface{}) *Node {
-	var left, right *Node
-	if _, ok := l.(*Node); ok {
-		left = l.(*Node)
+func N(l, r interface{}) *TreeNode {
+	var left, right *TreeNode
+	if _, ok := l.(*TreeNode); ok {
+		left = l.(*TreeNode)
 	} else {
 		left = NewNode(i2b(l.(int)), nil, 0)
 	}
-	if _, ok := r.(*Node); ok {
-		right = r.(*Node)
+	if _, ok := r.(*TreeNode); ok {
+		right = r.(*TreeNode)
 	} else {
 		right = NewNode(i2b(r.(int)), nil, 0)
 	}
 
-	n := &Node{
+	n := &TreeNode{
 		key:       right.lmd(nil).key,
 		value:     nil,
 		leftNode:  left,
@@ -69,7 +69,7 @@ func N(l, r interface{}) *Node {
 }
 
 // Setup a deep node
-func T(n *Node) *MutableTree {
+func T(n *TreeNode) *MutableTree {
 	t, _ := getTestTree(0)
 
 	n.hashWithCount()
@@ -78,7 +78,7 @@ func T(n *Node) *MutableTree {
 }
 
 // Convenience for simple printing of keys & tree structure
-func P(n *Node) string {
+func P(n *TreeNode) string {
 	if n.height == 0 {
 		return fmt.Sprintf("%v", b2i(n.key))
 	}

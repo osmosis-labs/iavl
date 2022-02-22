@@ -198,7 +198,7 @@ func proofLeafNodeFromProto(pbLeaf *iavlproto.ProofLeafNode) (ProofLeafNode, err
 // If the key does not exist, returns the path to the next leaf left of key (w/
 // path), except when key is less than the least item, in which case it returns
 // a path to the least item.
-func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, error) {
+func (node *TreeNode) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *TreeNode, error) {
 	path := new(PathToLeaf)
 	val, err := node.pathToLeaf(t, key, path)
 	return *path, val, err
@@ -207,7 +207,7 @@ func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, e
 // pathToLeaf is a helper which recursively constructs the PathToLeaf.
 // As an optimization the already constructed path is passed in as an argument
 // and is shared among recursive calls.
-func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
+func (node *TreeNode) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*TreeNode, error) {
 	if node.height == 0 {
 		if bytes.Equal(node.key, key) {
 			return node, nil

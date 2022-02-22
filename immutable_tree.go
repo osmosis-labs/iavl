@@ -14,7 +14,7 @@ import (
 // Returned key/value byte slices must not be modified, since they may point to data located inside
 // IAVL which would also be modified.
 type ImmutableTree struct {
-	root    *Node
+	root    *TreeNode
 	ndb     *nodeDB
 	version int64
 }
@@ -75,7 +75,7 @@ func defaultNodeEncoder(id []byte, depth int, isLeaf bool) string {
 	return fmt.Sprintf("%s%X", prefix, id)
 }
 
-func (t *ImmutableTree) renderNode(node *Node, indent string, depth int, encoder func([]byte, int, bool) string) []string {
+func (t *ImmutableTree) renderNode(node *TreeNode, indent string, depth int, encoder func([]byte, int, bool) string) []string {
 	prefix := strings.Repeat(indent, depth)
 	// handle nil
 	if node == nil {
@@ -187,13 +187,13 @@ func (t *ImmutableTree) Get(key []byte) []byte {
 	}
 
 	// cache node was updated later than the current tree. Use regular strategy for reading from the current tree
-	if fastNode.versionLastUpdatedAt > t.version {
-		debug("last updated version %d is too new for FastNode where tree is of version %d with key %X, falling back to regular IAVL logic\n", fastNode.versionLastUpdatedAt, t.version, key)
+	if fastNode.GetVersion() > t.version {
+		debug("last updated version %d is too new for FastNode where tree is of version %d with key %X, falling back to regular IAVL logic\n", fastNode.GetVersion(), t.version, key)
 		_, result := t.root.get(t, key)
 		return result
 	}
 
-	return fastNode.value
+	return fastNode.GetValue()
 }
 
 // GetByIndex gets the key and value at the specified index.
@@ -239,7 +239,7 @@ func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, false, false, func(node *Node) bool {
+	return t.root.traverseInRange(t, start, end, ascending, false, false, func(node *TreeNode) bool {
 		if node.height == 0 {
 			return fn(node.key, node.value)
 		}
@@ -254,7 +254,7 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, true, false, func(node *Node) bool {
+	return t.root.traverseInRange(t, start, end, ascending, true, false, func(node *TreeNode) bool {
 		if node.height == 0 {
 			return fn(node.key, node.value, node.version)
 		}
@@ -287,7 +287,7 @@ func (t *ImmutableTree) clone() *ImmutableTree {
 // nodeSize is like Size, but includes inner nodes too.
 func (t *ImmutableTree) nodeSize() int {
 	size := 0
-	t.root.traverse(t, true, func(n *Node) bool {
+	t.root.traverse(t, true, func(n *TreeNode) bool {
 		size++
 		return false
 	})

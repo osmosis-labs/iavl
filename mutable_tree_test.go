@@ -405,9 +405,9 @@ func TestMutableTree_SetSimple(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 }
 
 func TestMutableTree_SetTwoKeys(t *testing.T) {
@@ -441,14 +441,14 @@ func TestMutableTree_SetTwoKeys(t *testing.T) {
 	require.Equal(t, 2, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 
 	fastNodeAddition = fastNodeAdditions[testKey2]
-	require.Equal(t, []byte(testKey2), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey2), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal2), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 }
 
 func TestMutableTree_SetOverwrite(t *testing.T) {
@@ -475,9 +475,9 @@ func TestMutableTree_SetOverwrite(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal2), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 }
 
 func TestMutableTree_SetRemoveSet(t *testing.T) {
@@ -501,9 +501,9 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 
 	// Remove
 	removedVal, isRemoved := tree.Remove([]byte(testKey1))
@@ -534,9 +534,9 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition = fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersion())
 
 	fastNodeRemovals = tree.getUnsavedFastNodeRemovals()
 	require.Equal(t, 0, len(fastNodeRemovals))
