@@ -14,7 +14,7 @@ func PrintTree(tree *ImmutableTree) {
 	printNode(ndb, root, 0)
 }
 
-func printNode(ndb *nodeDB, node *Node, indent int) {
+func printNode(ndb *nodeDB, node *TreeNode, indent int) {
 	indentPrefix := ""
 	for i := 0; i < indent; i++ {
 		indentPrefix += "    "

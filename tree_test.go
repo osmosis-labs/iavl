@@ -1673,7 +1673,7 @@ func TestLoadVersionForOverwritingCase2(t *testing.T) {
 	}
 	tree.SaveVersion()
 
-	removedNodes := []*Node{}
+	removedNodes := []*TreeNode{}
 
 	nodes, err := tree.ndb.nodes()
 	require.NoError(err)
@@ -1728,7 +1728,7 @@ func TestLoadVersionForOverwritingCase3(t *testing.T) {
 	_, _, err = tree.SaveVersion()
 	require.NoError(err)
 
-	removedNodes := []*Node{}
+	removedNodes := []*TreeNode{}
 
 	nodes, err := tree.ndb.nodes()
 	require.NoError(err)

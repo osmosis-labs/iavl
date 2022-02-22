@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Node represents a node in a Tree.
-type Node struct {
+// TreeNode represents a node in a Tree.
+type TreeNode struct {
 	key       []byte
 	value     []byte
 	hash      []byte
@@ -22,15 +22,15 @@ type Node struct {
 	rightHash []byte
 	version   int64
 	size      int64
-	leftNode  *Node
-	rightNode *Node
+	leftNode  *TreeNode
+	rightNode *TreeNode
 	height    int8
 	persisted bool
 }
 
 // NewNode returns a new node from a key, value and version.
-func NewNode(key []byte, value []byte, version int64) *Node {
-	return &Node{
+func NewNode(key []byte, value []byte, version int64) *TreeNode {
+	return &TreeNode{
 		key:     key,
 		value:   value,
 		height:  0,
@@ -39,11 +39,11 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 	}
 }
 
-// MakeNode constructs an *Node from an encoded byte slice.
+// MakeNode constructs an *TreeNode from an encoded byte slice.
 //
 // The new node doesn't have its hash saved or set. The caller must set it
 // afterwards.
-func MakeNode(buf []byte) (*Node, error) {
+func MakeNode(buf []byte) (*TreeNode, error) {
 
 	// Read node header (height, size, version, key).
 	height, n, cause := decodeVarint(buf)
@@ -73,7 +73,7 @@ func MakeNode(buf []byte) (*Node, error) {
 	}
 	buf = buf[n:]
 
-	node := &Node{
+	node := &TreeNode{
 		height:  int8(height),
 		size:    size,
 		version: ver,
@@ -106,12 +106,12 @@ func MakeNode(buf []byte) (*Node, error) {
 }
 
 // String returns a string representation of the node.
-func (node *Node) String() string {
+func (node *TreeNode) String() string {
 	hashstr := "<no hash>"
 	if len(node.hash) > 0 {
 		hashstr = fmt.Sprintf("%X", node.hash)
 	}
-	return fmt.Sprintf("Node{%s:%s@%d %X;%X}#%s",
+	return fmt.Sprintf("TreeNode{%s:%s@%d %X;%X}#%s",
 		ColoredBytes(node.key, Green, Blue),
 		ColoredBytes(node.value, Cyan, Blue),
 		node.version,
@@ -120,11 +120,11 @@ func (node *Node) String() string {
 }
 
 // clone creates a shallow copy of a node with its hash set to nil.
-func (node *Node) clone(version int64) *Node {
+func (node *TreeNode) clone(version int64) *TreeNode {
 	if node.isLeaf() {
 		panic("Attempt to copy a leaf node")
 	}
-	return &Node{
+	return &TreeNode{
 		key:       node.key,
 		height:    node.height,
 		version:   version,
@@ -138,12 +138,12 @@ func (node *Node) clone(version int64) *Node {
 	}
 }
 
-func (node *Node) isLeaf() bool {
+func (node *TreeNode) isLeaf() bool {
 	return node.height == 0
 }
 
 // Check if the node has a descendant with the given key.
-func (node *Node) has(t *ImmutableTree, key []byte) (has bool) {
+func (node *TreeNode) has(t *ImmutableTree, key []byte) (has bool) {
 	if bytes.Equal(node.key, key) {
 		return true
 	}
@@ -160,7 +160,7 @@ func (node *Node) has(t *ImmutableTree, key []byte) (has bool) {
 //
 // The index is the index in the list of leaf nodes sorted lexicographically by key. The leftmost leaf has index 0.
 // It's neighbor has index 1 and so on.
-func (node *Node) get(t *ImmutableTree, key []byte) (index int64, value []byte) {
+func (node *TreeNode) get(t *ImmutableTree, key []byte) (index int64, value []byte) {
 	if node.isLeaf() {
 		switch bytes.Compare(node.key, key) {
 		case -1:
@@ -181,7 +181,7 @@ func (node *Node) get(t *ImmutableTree, key []byte) (index int64, value []byte) 
 	return index, value
 }
 
-func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
+func (node *TreeNode) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
 	if node.isLeaf() {
 		if index == 0 {
 			return node.key, node.value
@@ -200,7 +200,7 @@ func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value [
 
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
-func (node *Node) _hash() []byte {
+func (node *TreeNode) _hash() []byte {
 	if node.hash != nil {
 		return node.hash
 	}
@@ -223,7 +223,7 @@ func (node *Node) _hash() []byte {
 // descendant nodes. Returns the node hash and number of nodes hashed.
 // If the tree is empty (i.e. the node is nil), returns the hash of an empty input,
 // to conform with RFC-6962.
-func (node *Node) hashWithCount() ([]byte, int64) {
+func (node *TreeNode) hashWithCount() ([]byte, int64) {
 	if node == nil {
 		return sha256.New().Sum(nil), 0
 	}
@@ -247,7 +247,7 @@ func (node *Node) hashWithCount() ([]byte, int64) {
 }
 
 // validate validates the node contents
-func (node *Node) validate() error {
+func (node *TreeNode) validate() error {
 	if node == nil {
 		return errors.New("node cannot be nil")
 	}
@@ -289,7 +289,7 @@ func (node *Node) validate() error {
 
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
-func (node *Node) writeHashBytes(w io.Writer) error {
+func (node *TreeNode) writeHashBytes(w io.Writer) error {
 	err := encodeVarint(w, int64(node.height))
 	if err != nil {
 		return errors.Wrap(err, "writing height")
@@ -303,7 +303,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 		return errors.Wrap(err, "writing version")
 	}
 
-	// Key is not written for inner nodes, unlike writeBytes.
+	// Key is not written for inner nodes, unlike WriteBytes.
 
 	if node.isLeaf() {
 		err = encodeBytes(w, node.key)
@@ -338,7 +338,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 
 // Writes the node's hash to the given io.Writer.
 // This function has the side-effect of calling hashWithCount.
-func (node *Node) writeHashBytesRecursively(w io.Writer) (hashCount int64, err error) {
+func (node *TreeNode) writeHashBytesRecursively(w io.Writer) (hashCount int64, err error) {
 	if node.leftNode != nil {
 		leftHash, leftCount := node.leftNode.hashWithCount()
 		node.leftHash = leftHash
@@ -354,7 +354,7 @@ func (node *Node) writeHashBytesRecursively(w io.Writer) (hashCount int64, err e
 	return
 }
 
-func (node *Node) encodedSize() int {
+func (node *TreeNode) encodedSize() int {
 	n := 1 +
 		encodeVarintSize(node.size) +
 		encodeVarintSize(node.version) +
@@ -369,7 +369,7 @@ func (node *Node) encodedSize() int {
 }
 
 // Writes the node as a serialized byte slice to the supplied io.Writer.
-func (node *Node) writeBytes(w io.Writer) error {
+func (node *TreeNode) writeBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
@@ -399,7 +399,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		}
 	} else {
 		if node.leftHash == nil {
-			panic("node.leftHash was nil in writeBytes")
+			panic("node.leftHash was nil in WriteBytes")
 		}
 		cause = encodeBytes(w, node.leftHash)
 		if cause != nil {
@@ -407,7 +407,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		}
 
 		if node.rightHash == nil {
-			panic("node.rightHash was nil in writeBytes")
+			panic("node.rightHash was nil in WriteBytes")
 		}
 		cause = encodeBytes(w, node.rightHash)
 		if cause != nil {
@@ -417,14 +417,14 @@ func (node *Node) writeBytes(w io.Writer) error {
 	return nil
 }
 
-func (node *Node) getLeftNode(t *ImmutableTree) *Node {
+func (node *TreeNode) getLeftNode(t *ImmutableTree) *TreeNode {
 	if node.leftNode != nil {
 		return node.leftNode
 	}
 	return t.ndb.GetNode(node.leftHash)
 }
 
-func (node *Node) getRightNode(t *ImmutableTree) *Node {
+func (node *TreeNode) getRightNode(t *ImmutableTree) *TreeNode {
 	if node.rightNode != nil {
 		return node.rightNode
 	}
@@ -432,30 +432,30 @@ func (node *Node) getRightNode(t *ImmutableTree) *Node {
 }
 
 // NOTE: mutates height and size
-func (node *Node) calcHeightAndSize(t *ImmutableTree) {
+func (node *TreeNode) calcHeightAndSize(t *ImmutableTree) {
 	node.height = maxInt8(node.getLeftNode(t).height, node.getRightNode(t).height) + 1
 	node.size = node.getLeftNode(t).size + node.getRightNode(t).size
 }
 
-func (node *Node) calcBalance(t *ImmutableTree) int {
+func (node *TreeNode) calcBalance(t *ImmutableTree) int {
 	return int(node.getLeftNode(t).height) - int(node.getRightNode(t).height)
 }
 
 // traverse is a wrapper over traverseInRange when we want the whole tree
-func (node *Node) traverse(t *ImmutableTree, ascending bool, cb func(*Node) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node *Node) bool {
+func (node *TreeNode) traverse(t *ImmutableTree, ascending bool, cb func(*TreeNode) bool) bool {
+	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node *TreeNode) bool {
 		return cb(node)
 	})
 }
 
 // traversePost is a wrapper over traverseInRange when we want the whole tree post-order
-func (node *Node) traversePost(t *ImmutableTree, ascending bool, cb func(*Node) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, true, func(node *Node) bool {
+func (node *TreeNode) traversePost(t *ImmutableTree, ascending bool, cb func(*TreeNode) bool) bool {
+	return node.traverseInRange(t, nil, nil, ascending, false, true, func(node *TreeNode) bool {
 		return cb(node)
 	})
 }
 
-func (node *Node) traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*Node) bool) bool {
+func (node *TreeNode) traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*TreeNode) bool) bool {
 	stop := false
 	t := node.newTraversal(tree, start, end, ascending, inclusive, post)
 	for node2 := t.next(); node2 != nil; node2 = t.next() {
@@ -468,7 +468,7 @@ func (node *Node) traverseInRange(tree *ImmutableTree, start, end []byte, ascend
 }
 
 // Only used in testing...
-func (node *Node) lmd(t *ImmutableTree) *Node {
+func (node *TreeNode) lmd(t *ImmutableTree) *TreeNode {
 	if node.isLeaf() {
 		return node
 	}

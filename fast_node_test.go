@@ -17,7 +17,7 @@ func TestFastNode_encodedSize(t *testing.T) {
 
 	expectedSize := 1 + len(fastNode.value) + 1
 
-	require.Equal(t, expectedSize, fastNode.encodedSize())
+	require.Equal(t, expectedSize, fastNode.EncodedSize())
 }
 
 func TestFastNode_encode_decode(t *testing.T) {
@@ -38,7 +38,7 @@ func TestFastNode_encode_decode(t *testing.T) {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
-			err := tc.node.writeBytes(&buf)
+			err := tc.node.WriteBytes(&buf)
 			if tc.expectError {
 				require.Error(t, err)
 				return

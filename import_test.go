@@ -121,7 +121,7 @@ func TestImporter_Add(t *testing.T) {
 		"no value":          {&ExportNode{Key: k, Value: nil, Version: 1, Height: 0}, false},
 		"version too large": {&ExportNode{Key: k, Value: v, Version: 2, Height: 0}, false},
 		"no version":        {&ExportNode{Key: k, Value: v, Version: 0, Height: 0}, false},
-		// further cases will be handled by Node.validate()
+		// further cases will be handled by TreeNode.validate()
 	}
 	for desc, tc := range testcases {
 		tc := tc // appease scopelint

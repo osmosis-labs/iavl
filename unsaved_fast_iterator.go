@@ -28,7 +28,7 @@ type UnsavedFastIterator struct {
 
 	ndb *nodeDB
 
-	unsavedFastNodeAdditions map[string]*FastNode
+	unsavedFastNodeAdditions map[string]Node
 
 	unsavedFastNodeRemovals map[string]interface{}
 
@@ -45,7 +45,7 @@ type UnsavedFastIterator struct {
 
 var _ dbm.Iterator = &UnsavedFastIterator{}
 
-func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsavedFastNodeAdditions map[string]*FastNode, unsavedFastNodeRemovals map[string]interface{}) *UnsavedFastIterator {
+func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsavedFastNodeAdditions map[string]Node, unsavedFastNodeRemovals map[string]interface{}) *UnsavedFastIterator {
 
 	iter := &UnsavedFastIterator{
 		start:                    start,
@@ -66,15 +66,15 @@ func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsa
 	// The strategy is to sort unsaved nodes, the fast node on disk are already sorted.
 	// Then, we keep a pointer to both the unsaved and saved nodes, and iterate over them in order efficiently.
 	for _, fastNode := range unsavedFastNodeAdditions {
-		if start != nil && bytes.Compare(fastNode.key, start) < 0 {
+		if start != nil && bytes.Compare(fastNode.GetKey(), start) < 0 {
 			continue
 		}
 
-		if end != nil && bytes.Compare(fastNode.key, end) >= 0 {
+		if end != nil && bytes.Compare(fastNode.GetKey(), end) >= 0 {
 			continue
 		}
 
-		iter.unsavedFastNodesToSort = append(iter.unsavedFastNodesToSort, string(fastNode.key))
+		iter.unsavedFastNodesToSort = append(iter.unsavedFastNodesToSort, string(fastNode.GetKey()))
 	}
 
 	sort.Slice(iter.unsavedFastNodesToSort, func(i, j int) bool {
@@ -174,8 +174,8 @@ func (iter *UnsavedFastIterator) Next() {
 				iter.fastIterator.Next()
 			}
 
-			iter.nextKey = nextUnsavedNode.key
-			iter.nextVal = nextUnsavedNode.value
+			iter.nextKey = nextUnsavedNode.GetKey()
+			iter.nextVal = nextUnsavedNode.GetValue()
 
 			iter.nextUnsavedNodeIdx++
 			return
@@ -210,8 +210,8 @@ func (iter *UnsavedFastIterator) Next() {
 		nextUnsavedKey := iter.unsavedFastNodesToSort[iter.nextUnsavedNodeIdx]
 		nextUnsavedNode := iter.unsavedFastNodeAdditions[nextUnsavedKey]
 
-		iter.nextKey = nextUnsavedNode.key
-		iter.nextVal = nextUnsavedNode.value
+		iter.nextKey = nextUnsavedNode.GetKey()
+		iter.nextVal = nextUnsavedNode.GetValue()
 
 		iter.nextUnsavedNodeIdx++
 		return

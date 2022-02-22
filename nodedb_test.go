@@ -1,8 +1,10 @@
 package iavl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -32,14 +34,9 @@ func BenchmarkOrphanKey(b *testing.B) {
 
 func TestNewNoDbStorage_StorageVersionInDb_Success(t *testing.T) {
 	const expectedVersion = defaultStorageVersionValue
-
 	ctrl := gomock.NewController(t)
-	dbMock := mock.NewMockDB(ctrl)
+	ndb, _, _ := createNodeDbWithMocks(ctrl)
 
-	dbMock.EXPECT().Get(gomock.Any()).Return([]byte(expectedVersion), nil).Times(1)
-	dbMock.EXPECT().NewBatch().Return(nil).Times(1)
-
-	ndb := newNodeDB(dbMock, 0, nil)
 	require.Equal(t, expectedVersion, ndb.storageVersion)
 }
 
@@ -247,4 +244,87 @@ func makeHashes(b *testing.B, seed int64) [][]byte {
 	}
 	b.StartTimer()
 	return hashes
+}
+
+func TestNodeDB_SaveFastNode_ReturnsErrorForNilKey(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockNode := NewMockNode(ctrl)
+	mockNode.EXPECT().getKey().Return(nil).Times(1)
+
+	ndb, _, _ := createNodeDbWithMocks(ctrl)
+	err := ndb.SaveFastNode(mockNode)
+	require.Error(t, err)
+}
+
+func TestNodeDB_SaveFastNode_FailsWhenUnableToWriteToBuffer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockNode := NewMockNode(ctrl)
+	var buf bytes.Buffer
+	mockNode.EXPECT().getKey().Return([]byte("k1")).Times(1)
+	mockNode.EXPECT().encodedSize().Return(1).Times(1)
+	mockNode.EXPECT().writeBytes(gomock.AssignableToTypeOf(&buf)).Return(fmt.Errorf("Error")).Times(1)
+
+	ndb, _, _ := createNodeDbWithMocks(ctrl)
+	err := ndb.SaveFastNode(mockNode)
+	require.Error(t, err)
+}
+
+func TestNodeDB_SaveFastNode_ReturnErrorWhenNdbBatchFails(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockNode := NewMockNode(ctrl)
+	ndb, _, mockBatch := createNodeDbWithMocks(ctrl)
+
+	var buf bytes.Buffer
+	buf.Grow(40)
+
+	mockNode.EXPECT().getKey().Return([]byte("k1")).Times(2)
+	mockNode.EXPECT().encodedSize().Return(1).Times(1)
+	mockNode.EXPECT().writeBytes(gomock.AssignableToTypeOf(&buf)).
+		Return(nil).
+		Do(func(buf *bytes.Buffer) {
+			// TODO: this should have the acutla expected bytes
+			buf.Write([]byte("test"))
+		}).Times(1)
+
+	// TODO: We should have explicit argument types
+	mockBatch.EXPECT().Set(gomock.Any(), gomock.Any()).Return(fmt.Errorf("Error")).Times(1)
+
+	err := ndb.SaveFastNode(mockNode)
+	require.Error(t, err)
+}
+
+func TestNodeDB_SaveFastNode(t *testing.T) {
+	// TODO: We should be checkign the value was/wasnt added to cache
+	ctrl := gomock.NewController(t)
+	mockNode := NewMockNode(ctrl)
+	ndb, _, mockBatch := createNodeDbWithMocks(ctrl)
+
+	var buf bytes.Buffer
+	buf.Grow(40)
+
+	mockNode.EXPECT().getKey().Return([]byte("k1")).Times(4)
+	mockNode.EXPECT().encodedSize().Return(1).Times(1)
+	mockNode.EXPECT().writeBytes(gomock.AssignableToTypeOf(&buf)).Return(nil).
+		Do(func(buf *bytes.Buffer) {
+			// TODO: this should have the acutla expected bytes
+			buf.Write([]byte("test"))
+		}).Times(1)
+
+	// TODO: We should have explicit argument types
+	mockBatch.EXPECT().Set(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	err := ndb.SaveFastNode(mockNode)
+	require.NoError(t, err)
+}
+
+func createNodeDbWithMocks(ctrl *gomock.Controller) (*nodeDB, *mock.MockDB, *mock.MockBatch) {
+	const expectedVersion = defaultStorageVersionValue
+
+	dbMock := mock.NewMockDB(ctrl)
+	mockBatch := mock.NewMockBatch(ctrl)
+
+	dbMock.EXPECT().Get(gomock.Any()).Return([]byte(expectedVersion), nil).Times(1)
+	dbMock.EXPECT().NewBatch().Return(mockBatch).Times(1)
+
+	return newNodeDB(dbMock, 0, nil), dbMock, mockBatch
 }
