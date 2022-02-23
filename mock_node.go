@@ -34,7 +34,7 @@ func (m *MockNode) EXPECT() *MockNodeMockRecorder {
 	return m.recorder
 }
 
-// encodedSize mocks base method.
+// EncodedSize mocks base method.
 func (m *MockNode) EncodedSize() int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EncodedSize")
@@ -42,16 +42,16 @@ func (m *MockNode) EncodedSize() int {
 	return ret0
 }
 
-// encodedSize indicates an expected call of encodedSize.
-func (mr *MockNodeMockRecorder) encodedSize() *gomock.Call {
+// EncodedSize indicates an expected call of EncodedSize.
+func (mr *MockNodeMockRecorder) EncodedSize() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncodedSize", reflect.TypeOf((*MockNode)(nil).EncodedSize))
 }
 
 // getKey mocks base method.
-func (m *MockNode) GetKey() []byte {
+func (m *MockNode) Key() []byte {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKey")
+	ret := m.ctrl.Call(m, "Key")
 	ret0, _ := ret[0].([]byte)
 	return ret0
 }
@@ -59,13 +59,13 @@ func (m *MockNode) GetKey() []byte {
 // getKey indicates an expected call of getKey.
 func (mr *MockNodeMockRecorder) getKey() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKey", reflect.TypeOf((*MockNode)(nil).GetKey))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Key", reflect.TypeOf((*MockNode)(nil).Key))
 }
 
 // getValue mocks base method.
-func (m *MockNode) GetValue() []byte {
+func (m *MockNode) Value() []byte {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetValue")
+	ret := m.ctrl.Call(m, "Value")
 	ret0, _ := ret[0].([]byte)
 	return ret0
 }
@@ -73,13 +73,13 @@ func (m *MockNode) GetValue() []byte {
 // getValue indicates an expected call of getValue.
 func (mr *MockNodeMockRecorder) getValue() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetValue", reflect.TypeOf((*MockNode)(nil).GetValue))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Value", reflect.TypeOf((*MockNode)(nil).Value))
 }
 
 // getVersion mocks base method.
-func (m *MockNode) GetVersion() int64 {
+func (m *MockNode) Version() int64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVersion")
+	ret := m.ctrl.Call(m, "Version")
 	ret0, _ := ret[0].(int64)
 	return ret0
 }
@@ -87,7 +87,7 @@ func (m *MockNode) GetVersion() int64 {
 // getVersion indicates an expected call of getVersion.
 func (mr *MockNodeMockRecorder) getVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersion", reflect.TypeOf((*MockNode)(nil).GetVersion))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockNode)(nil).Version))
 }
 
 // setKey mocks base method.
@@ -102,7 +102,7 @@ func (mr *MockNodeMockRecorder) setKey(key interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKey", reflect.TypeOf((*MockNode)(nil).SetKey), key)
 }
 
-// writeBytes mocks base method.
+// WriteBytes mocks base method.
 func (m *MockNode) WriteBytes(w io.Writer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteBytes", w)
@@ -110,8 +110,8 @@ func (m *MockNode) WriteBytes(w io.Writer) error {
 	return ret0
 }
 
-// writeBytes indicates an expected call of writeBytes.
-func (mr *MockNodeMockRecorder) writeBytes(w interface{}) *gomock.Call {
+// WriteBytes indicates an expected call of WriteBytes.
+func (mr *MockNodeMockRecorder) WriteBytes(w interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteBytes", reflect.TypeOf((*MockNode)(nil).WriteBytes), w)
 }

@@ -5,8 +5,8 @@ The Node struct stores a node in the IAVL tree.
 ### Structure
 
 ```golang
-// Node represents a node in a Tree.
-type Node struct {
+// TreeNode represents a node in a Tree.
+type TreeNode struct {
 	key       []byte // key for the node.
 	value     []byte // value of leaf node. If inner node, value = nil
 	version   int64  // The version of the IAVL that this node was first added in.
@@ -33,7 +33,7 @@ Every node is persisted by encoding the key, version, height, size and hash. If 
 
 ```golang
 // Writes the node as a serialized byte slice to the supplied io.Writer.
-func (node *Node) writeBytes(w io.Writer) error {
+func (node *Node) WriteBytes(w io.Writer) error {
 	cause := encodeVarint(w, node.height)
 	if cause != nil {
 		return errors.Wrap(cause, "writing height")
@@ -60,7 +60,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		}
 	} else {
 		if node.leftHash == nil {
-			panic("node.leftHash was nil in writeBytes")
+			panic("node.leftHash was nil in WriteBytes")
 		}
 		cause = encodeBytes(w, node.leftHash)
 		if cause != nil {
@@ -68,7 +68,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		}
 
 		if node.rightHash == nil {
-			panic("node.rightHash was nil in writeBytes")
+			panic("node.rightHash was nil in WriteBytes")
 		}
 		cause = encodeBytes(w, node.rightHash)
 		if cause != nil {
@@ -100,7 +100,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 		return errors.Wrap(err, "writing version")
 	}
 
-	// Key is not written for inner nodes, unlike writeBytes.
+	// Key is not written for inner nodes, unlike WriteBytes.
 
 	if node.isLeaf() {
 		err = encodeBytes(w, node.key)

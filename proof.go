@@ -226,10 +226,10 @@ func (node *TreeNode) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf)
 			Size:    node.size,
 			Version: node.version,
 			Left:    nil,
-			Right:   node.getRightNode(t).hash,
+			Right:   node.getRightNodeFromTree(t).Hash(),
 		}
 		*path = append(*path, pin)
-		n, err := node.getLeftNode(t).pathToLeaf(t, key, path)
+		n, err := node.getLeftNodeFromTree(t).(*TreeNode).pathToLeaf(t, key, path)
 		return n, err
 	}
 	// right side
@@ -237,10 +237,10 @@ func (node *TreeNode) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf)
 		Height:  node.height,
 		Size:    node.size,
 		Version: node.version,
-		Left:    node.getLeftNode(t).hash,
+		Left:    node.getLeftNodeFromTree(t).Hash(),
 		Right:   nil,
 	}
 	*path = append(*path, pin)
-	n, err := node.getRightNode(t).pathToLeaf(t, key, path)
+	n, err := node.getRightNodeFromTree(t).(*TreeNode).pathToLeaf(t, key, path)
 	return n, err
 }

@@ -191,30 +191,30 @@ func (ndb *nodeDB) GetFastNode(key []byte) (Node, error) {
 }
 
 // SaveNode saves a node to disk.
-func (ndb *nodeDB) SaveNode(node *TreeNode) {
+func (ndb *nodeDB) SaveNode(node ComplexNode) {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 
-	if node.hash == nil {
+	if node.Hash() == nil {
 		panic("Expected to find node.hash, but none found.")
 	}
-	if node.persisted {
+	if node.Persisted() {
 		panic("Shouldn't be calling save on an already persisted node.")
 	}
 
 	// Save node bytes to db.
 	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	buf.Grow(node.EncodedSize())
 
-	if err := node.writeBytes(&buf); err != nil {
+	if err := node.WriteBytes(&buf); err != nil {
 		panic(err)
 	}
 
-	if err := ndb.batch.Set(ndb.nodeKey(node.hash), buf.Bytes()); err != nil {
+	if err := ndb.batch.Set(ndb.nodeKey(node.Hash()), buf.Bytes()); err != nil {
 		panic(err)
 	}
-	debug("BATCH SAVE %X %p\n", node.hash, node)
-	node.persisted = true
+	debug("BATCH SAVE %X %p\n", node.Hash(), node)
+	node.SetPersisted(true)
 	ndb.cacheNode(node)
 }
 
@@ -292,7 +292,7 @@ func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
 // CONTRACT: the caller must serizlize access to this method through ndb.mtx.
 func (ndb *nodeDB) saveFastNodeUnlocked(node Node, shouldAddToCache bool) error {
 
-	if node.GetKey() == nil {
+	if node.Key() == nil {
 		return fmt.Errorf("FastNode cannot have a nil value for key")
 	}
 
@@ -304,7 +304,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node Node, shouldAddToCache bool) error 
 		return fmt.Errorf("error while writing fastnode bytes. Err: %w", err)
 	}
 
-	if err := ndb.batch.Set(ndb.fastNodeKey(node.GetKey()), buf.Bytes()); err != nil {
+	if err := ndb.batch.Set(ndb.fastNodeKey(node.Key()), buf.Bytes()); err != nil {
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
 	if shouldAddToCache {
@@ -336,29 +336,29 @@ func (ndb *nodeDB) Has(hash []byte) (bool, error) {
 // NOTE: This function clears leftNode/rigthNode recursively and
 // calls _hash() on the given node.
 // TODO refactor, maybe use hashWithCount() but provide a callback.
-func (ndb *nodeDB) SaveBranch(node *TreeNode) []byte {
-	if node.persisted {
-		return node.hash
+func (ndb *nodeDB) SaveBranch(node ComplexNode) []byte {
+	if node.Persisted() {
+		return node.Hash()
 	}
 
-	if node.leftNode != nil {
-		node.leftHash = ndb.SaveBranch(node.leftNode)
+	if node.LeftNode() != nil {
+		node.SetLeftHash(ndb.SaveBranch(node.LeftNode()))
 	}
-	if node.rightNode != nil {
-		node.rightHash = ndb.SaveBranch(node.rightNode)
+	if node.RightNode() != nil {
+		node.SetRightHash(ndb.SaveBranch(node.RightNode()))
 	}
 
 	node._hash()
 	ndb.SaveNode(node)
 
 	// resetBatch only working on generate a genesis block
-	if node.version <= genesisVersion {
+	if node.Version() <= genesisVersion {
 		ndb.resetBatch()
 	}
-	node.leftNode = nil
-	node.rightNode = nil
+	node.setLeftNode(nil)
+	node.setRightNode(nil)
 
-	return node.hash
+	return node.Hash()
 }
 
 // resetBatch reset the db batch, keep low memory used
@@ -478,8 +478,8 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			return err
 		}
 
-		if version <= fastNode.GetVersion() {
-			if err = ndb.DeleteFastNode(fastNode.GetKey()); err != nil {
+		if version <= fastNode.Version() {
+			if err = ndb.DeleteFastNode(fastNode.Key()); err != nil {
 				return err
 			}
 		}
@@ -546,7 +546,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 
 	for key, elem := range ndb.fastNodeCache {
 		fastNode := elem.Value.(Node)
-		if fastNode.GetVersion() >= fromVersion && fastNode.GetVersion() < toVersion {
+		if fastNode.Version() >= fromVersion && fastNode.Version() < toVersion {
 			ndb.fastNodeCacheQueue.Remove(elem)
 			delete(ndb.fastNodeCache, string(key))
 		}
@@ -829,13 +829,13 @@ func (ndb *nodeDB) uncacheNode(hash []byte) {
 
 // Add a node to the cache and pop the least recently used node if we've
 // reached the cache size limit.
-func (ndb *nodeDB) cacheNode(node *TreeNode) {
+func (ndb *nodeDB) cacheNode(node ComplexNode) {
 	elem := ndb.nodeCacheQueue.PushBack(node)
-	ndb.nodeCache[string(node.hash)] = elem
+	ndb.nodeCache[string(node.Hash())] = elem
 
 	if ndb.nodeCacheQueue.Len() > ndb.nodeCacheSize {
 		oldest := ndb.nodeCacheQueue.Front()
-		hash := ndb.nodeCacheQueue.Remove(oldest).(*TreeNode).hash
+		hash := ndb.nodeCacheQueue.Remove(oldest).(ComplexNode).Hash()
 		delete(ndb.nodeCache, string(hash))
 	}
 }
@@ -852,11 +852,11 @@ func (ndb *nodeDB) uncacheFastNode(key []byte) {
 // reached the cache size limit.
 func (ndb *nodeDB) cacheFastNode(node Node) {
 	elem := ndb.fastNodeCacheQueue.PushBack(node)
-	ndb.fastNodeCache[string(node.GetKey())] = elem
+	ndb.fastNodeCache[string(node.Key())] = elem
 
 	if ndb.fastNodeCacheQueue.Len() > ndb.fastNodeCacheSize {
 		oldest := ndb.fastNodeCacheQueue.Front()
-		key := ndb.fastNodeCacheQueue.Remove(oldest).(Node).GetKey()
+		key := ndb.fastNodeCacheQueue.Remove(oldest).(Node).Key()
 		delete(ndb.fastNodeCache, string(key))
 	}
 }
@@ -904,11 +904,11 @@ func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 
 // SaveRoot creates an entry on disk for the given root, so that it can be
 // loaded later.
-func (ndb *nodeDB) SaveRoot(root *TreeNode, version int64) error {
-	if len(root.hash) == 0 {
+func (ndb *nodeDB) SaveRoot(root ComplexNode, version int64) error {
+	if len(root.Hash()) == 0 {
 		panic("SaveRoot: root hash should not be empty")
 	}
-	return ndb.saveRoot(root.hash, version)
+	return ndb.saveRoot(root.Hash(), version)
 }
 
 // SaveEmptyRoot creates an entry on disk for an empty root.
@@ -951,11 +951,11 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 
 // Utility and test functions
 
-func (ndb *nodeDB) leafNodes() ([]*TreeNode, error) {
-	leaves := []*TreeNode{}
+func (ndb *nodeDB) leafNodes() ([]ComplexNode, error) {
+	leaves := []ComplexNode{}
 
-	err := ndb.traverseNodes(func(hash []byte, node *TreeNode) error {
-		if node.isLeaf() {
+	err := ndb.traverseNodes(func(hash []byte, node ComplexNode) error {
+		if node.Leaf() {
 			leaves = append(leaves, node)
 		}
 		return nil
@@ -968,10 +968,10 @@ func (ndb *nodeDB) leafNodes() ([]*TreeNode, error) {
 	return leaves, nil
 }
 
-func (ndb *nodeDB) nodes() ([]*TreeNode, error) {
-	nodes := []*TreeNode{}
+func (ndb *nodeDB) nodes() ([]ComplexNode, error) {
+	nodes := []ComplexNode{}
 
-	err := ndb.traverseNodes(func(hash []byte, node *TreeNode) error {
+	err := ndb.traverseNodes(func(hash []byte, node ComplexNode) error {
 		nodes = append(nodes, node)
 		return nil
 	})
@@ -1019,8 +1019,8 @@ func (ndb *nodeDB) size() int {
 	return size
 }
 
-func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *TreeNode) error) error {
-	nodes := []*TreeNode{}
+func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node ComplexNode) error) error {
+	nodes := []ComplexNode{}
 
 	err := ndb.traversePrefix(nodeKeyFormat.Key(), func(key, value []byte) error {
 		node, err := MakeNode(value)
@@ -1037,11 +1037,11 @@ func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *TreeNode) error) err
 	}
 
 	sort.Slice(nodes, func(i, j int) bool {
-		return bytes.Compare(nodes[i].key, nodes[j].key) < 0
+		return bytes.Compare(nodes[i].Key(), nodes[j].Key()) < 0
 	})
 
 	for _, n := range nodes {
-		if err := fn(n.hash, n); err != nil {
+		if err := fn(n.Hash(), n); err != nil {
 			return err
 		}
 	}
@@ -1069,18 +1069,18 @@ func (ndb *nodeDB) String() (string, error) {
 
 	str += "\n"
 
-	err = ndb.traverseNodes(func(hash []byte, node *TreeNode) error {
+	err = ndb.traverseNodes(func(hash []byte, node ComplexNode) error {
 		switch {
 		case len(hash) == 0:
 			str += "<nil>\n"
 		case node == nil:
 			str += fmt.Sprintf("%s%40x: <nil>\n", nodeKeyFormat.Prefix(), hash)
-		case node.value == nil && node.height > 0:
+		case node.Value() == nil && node.Height() > 0:
 			str += fmt.Sprintf("%s%40x: %s   %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, "", node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.Key(), "", node.Height(), node.Version())
 		default:
 			str += fmt.Sprintf("%s%40x: %s = %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, node.value, node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.Key(), node.Value(), node.Height(), node.Version())
 		}
 		index++
 		return nil

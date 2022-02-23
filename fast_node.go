@@ -9,13 +9,12 @@ import (
 // The Tree on the other hand favors int.  This is intentional.
 
 type Node interface {
-	GetKey() []byte
-	GetValue() []byte
+	Key() []byte
+	Value() []byte
 	SetKey(key []byte)
-	GetVersion() int64
+	Version() int64
 	WriteBytes(w io.Writer) error
 	EncodedSize() int
-
 }
 type FastNode struct {
 	key                  []byte
@@ -23,19 +22,19 @@ type FastNode struct {
 	value                []byte
 }
 
-func (node *FastNode) GetValue() []byte{
+func (node *FastNode) Value() []byte {
 	return node.value
 }
 
-func (node *FastNode) GetKey() []byte{
+func (node *FastNode) Key() []byte {
 	return node.key
 }
 
-func (node *FastNode) SetKey(key []byte){
+func (node *FastNode) SetKey(key []byte) {
 	node.key = key
 }
 
-func (node *FastNode) GetVersion() int64{
+func (node *FastNode) Version() int64 {
 	return node.versionLastUpdatedAt
 }
 
@@ -75,7 +74,7 @@ func (node *FastNode) EncodedSize() int {
 	return n
 }
 
-// writeBytes writes the FastNode as a serialized byte slice to the supplied io.Writer.
+// WriteBytes writes the FastNode as a serialized byte slice to the supplied io.Writer.
 func (node *FastNode) WriteBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")

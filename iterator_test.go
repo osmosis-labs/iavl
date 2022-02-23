@@ -116,79 +116,45 @@ func TestIterator_Empty_Invalid(t *testing.T) {
 }
 
 func TestIterator_Basic_Ranged_Ascending_Success(t *testing.T) {
-	config := &iteratorTestConfig{
-		startByteToSet: 'a',
-		endByteToSet:   'z',
-		startIterate:   []byte("e"),
-		endIterate:     []byte("w"),
-		ascending:      true,
+	testCases := []bool{true, false}
+	for _, val := range testCases {
+		config := &iteratorTestConfig{
+			startByteToSet: 'a',
+			endByteToSet:   'z',
+			startIterate:   []byte("e"),
+			endIterate:     []byte("w"),
+			ascending:      val,
+		}
+
+		performTest := func(t *testing.T, itr dbm.Iterator, mirror [][]string) {
+			actualStart, actualEnd := itr.Domain()
+			require.Equal(t, config.startIterate, actualStart)
+			require.Equal(t, config.endIterate, actualEnd)
+
+			require.NoError(t, itr.Error())
+
+			assertIterator(t, itr, mirror, config.ascending)
+		}
+
+		t.Run("Iterator", func(t *testing.T) {
+			itr, mirror := setupIteratorAndMirror(t, config)
+			require.True(t, itr.Valid())
+			performTest(t, itr, mirror)
+		})
+
+		t.Run("Fast Iterator", func(t *testing.T) {
+			itr, mirror := setupFastIteratorAndMirror(t, config)
+			require.True(t, itr.Valid())
+			performTest(t, itr, mirror)
+		})
+
+		t.Run("Unsaved Fast Iterator", func(t *testing.T) {
+			itr, mirror := setupUnsavedFastIterator(t, config)
+			require.True(t, itr.Valid())
+			performTest(t, itr, mirror)
+		})
 	}
 
-	performTest := func(t *testing.T, itr dbm.Iterator, mirror [][]string) {
-		actualStart, actualEnd := itr.Domain()
-		require.Equal(t, config.startIterate, actualStart)
-		require.Equal(t, config.endIterate, actualEnd)
-
-		require.NoError(t, itr.Error())
-
-		assertIterator(t, itr, mirror, config.ascending)
-	}
-
-	t.Run("Iterator", func(t *testing.T) {
-		itr, mirror := setupIteratorAndMirror(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
-
-	t.Run("Fast Iterator", func(t *testing.T) {
-		itr, mirror := setupFastIteratorAndMirror(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
-
-	t.Run("Unsaved Fast Iterator", func(t *testing.T) {
-		itr, mirror := setupUnsavedFastIterator(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
-}
-
-func TestIterator_Basic_Ranged_Descending_Success(t *testing.T) {
-	config := &iteratorTestConfig{
-		startByteToSet: 'a',
-		endByteToSet:   'z',
-		startIterate:   []byte("e"),
-		endIterate:     []byte("w"),
-		ascending:      false,
-	}
-
-	performTest := func(t *testing.T, itr dbm.Iterator, mirror [][]string) {
-		actualStart, actualEnd := itr.Domain()
-		require.Equal(t, config.startIterate, actualStart)
-		require.Equal(t, config.endIterate, actualEnd)
-
-		require.NoError(t, itr.Error())
-
-		assertIterator(t, itr, mirror, config.ascending)
-	}
-
-	t.Run("Iterator", func(t *testing.T) {
-		itr, mirror := setupIteratorAndMirror(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
-
-	t.Run("Fast Iterator", func(t *testing.T) {
-		itr, mirror := setupFastIteratorAndMirror(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
-
-	t.Run("Unsaved Fast Iterator", func(t *testing.T) {
-		itr, mirror := setupUnsavedFastIterator(t, config)
-		require.True(t, itr.Valid())
-		performTest(t, itr, mirror)
-	})
 }
 
 func TestIterator_Basic_Full_Ascending_Success(t *testing.T) {

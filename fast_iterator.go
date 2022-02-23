@@ -82,7 +82,7 @@ func (iter *FastIterator) Valid() bool {
 // Key implements dbm.Iterator
 func (iter *FastIterator) Key() []byte {
 	if iter.valid {
-		return iter.nextFastNode.GetKey()
+		return iter.nextFastNode.Key()
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (iter *FastIterator) Key() []byte {
 // Value implements dbm.Iterator
 func (iter *FastIterator) Value() []byte {
 	if iter.valid {
-		return iter.nextFastNode.GetValue()
+		return iter.nextFastNode.Value()
 	}
 	return nil
 }

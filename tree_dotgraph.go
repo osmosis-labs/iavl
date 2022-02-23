@@ -45,32 +45,32 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 	ctx := &graphContext{}
 
 	tree.root.hashWithCount()
-	tree.root.traverse(tree, true, func(node *TreeNode) bool {
+	tree.root.traverse(tree, true, func(node ComplexNode) bool {
 		graphNode := &graphNode{
 			Attrs: map[string]string{},
-			Hash:  fmt.Sprintf("%x", node.hash),
+			Hash:  fmt.Sprintf("%x", node.Hash()),
 		}
 		for k, v := range defaultGraphNodeAttrs {
 			graphNode.Attrs[k] = v
 		}
 		shortHash := graphNode.Hash[:7]
 
-		graphNode.Label = mkLabel(string(node.key), 16, "sans-serif")
+		graphNode.Label = mkLabel(string(node.Key()), 16, "sans-serif")
 		graphNode.Label += mkLabel(shortHash, 10, "monospace")
-		graphNode.Label += mkLabel(fmt.Sprintf("version=%d", node.version), 10, "monospace")
+		graphNode.Label += mkLabel(fmt.Sprintf("version=%d", node.Version()), 10, "monospace")
 
-		if node.value != nil {
-			graphNode.Label += mkLabel(string(node.value), 10, "sans-serif")
+		if node.Value() != nil {
+			graphNode.Label += mkLabel(string(node.Value()), 10, "sans-serif")
 		}
 
-		if node.height == 0 {
+		if node.Height() == 0 {
 			graphNode.Attrs["fillcolor"] = "lightgrey"
 			graphNode.Attrs["style"] = "filled"
 		}
 
 		for _, path := range paths {
 			for _, n := range path {
-				if bytes.Equal(n.Left, node.hash) || bytes.Equal(n.Right, node.hash) {
+				if bytes.Equal(n.Left, node.Hash()) || bytes.Equal(n.Right, node.Hash()) {
 					graphNode.Attrs["peripheries"] = "2"
 					graphNode.Attrs["style"] = "filled"
 					graphNode.Attrs["fillcolor"] = "lightblue"
@@ -80,16 +80,16 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 		}
 		ctx.Nodes = append(ctx.Nodes, graphNode)
 
-		if node.leftNode != nil {
+		if node.LeftNode() != nil {
 			ctx.Edges = append(ctx.Edges, &graphEdge{
 				From: graphNode.Hash,
-				To:   fmt.Sprintf("%x", node.leftNode.hash),
+				To:   fmt.Sprintf("%x", node.LeftNode().Hash()),
 			})
 		}
-		if node.rightNode != nil {
+		if node.RightNode() != nil {
 			ctx.Edges = append(ctx.Edges, &graphEdge{
 				From: graphNode.Hash,
-				To:   fmt.Sprintf("%x", node.rightNode.hash),
+				To:   fmt.Sprintf("%x", node.RightNode().Hash()),
 			})
 		}
 		return false
