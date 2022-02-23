@@ -424,7 +424,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	}
 
 	// Get the key after left.key to iterate from.
-	afterLeft := cpIncr(left.key)
+	afterLeft := cpIncr(left.Key())
 
 	// Traverse starting from afterLeft, until keyEnd or the next leaf
 	// after keyEnd.
@@ -434,7 +434,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	var pathCount = 0
 
 	t.root.traverseInRange(t, afterLeft, nil, true, false, false,
-		func(node *TreeNode) (stop bool) {
+		func(node ComplexNode) (stop bool) {
 
 			// Track when we diverge from path, or when we've exhausted path,
 			// since the first allPathToLeafs shouldn't include it.
@@ -444,9 +444,9 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 					pathCount = -1
 				} else {
 					pn := path[pathCount]
-					if pn.Height != node.height ||
-						pn.Left != nil && !bytes.Equal(pn.Left, node.leftHash) ||
-						pn.Right != nil && !bytes.Equal(pn.Right, node.rightHash) {
+					if pn.Height != node.Height() ||
+						pn.Left != nil && !bytes.Equal(pn.Left, node.LeftHash()) ||
+						pn.Right != nil && !bytes.Equal(pn.Right, node.RightHash()) {
 
 						// We've diverged, so start appending to allPathToLeaf.
 						pathCount = -1
@@ -456,17 +456,17 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				}
 			}
 
-			if node.height == 0 { // Leaf node
+			if node.Height() == 0 { // Leaf node
 				// Append all paths that we tracked so far to get to this leaf node.
 				allPathToLeafs = append(allPathToLeafs, currentPathToLeaf)
 				// Start a new one to track as we traverse the tree.
 				currentPathToLeaf = PathToLeaf(nil)
 
-				h := sha256.Sum256(node.value)
+				h := sha256.Sum256(node.Value())
 				leaves = append(leaves, ProofLeafNode{
-					Key:       node.key,
+					Key:       node.Key(),
 					ValueHash: h[:],
-					Version:   node.version,
+					Version:   node.Version(),
 				})
 
 				leafCount++
@@ -477,17 +477,17 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				}
 
 				// Terminate if we've found keyEnd or after.
-				if keyEnd != nil && bytes.Compare(node.key, keyEnd) >= 0 {
+				if keyEnd != nil && bytes.Compare(node.Key(), keyEnd) >= 0 {
 					return true
 				}
 
 				// Value is in range, append to keys and values.
-				keys = append(keys, node.key)
-				values = append(values, node.value)
+				keys = append(keys, node.Key())
+				values = append(values, node.Value())
 
 				// Terminate if we've found keyEnd-1 or after.
 				// We don't want to fetch any leaves for it.
-				if keyEnd != nil && bytes.Compare(cpIncr(node.key), keyEnd) >= 0 {
+				if keyEnd != nil && bytes.Compare(cpIncr(node.Key()), keyEnd) >= 0 {
 					return true
 				}
 
@@ -499,11 +499,11 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				// and don't need to store unnecessary info as we only need to go down the right
 				// path.
 				currentPathToLeaf = append(currentPathToLeaf, ProofInnerNode{
-					Height:  node.height,
-					Size:    node.size,
-					Version: node.version,
+					Height:  node.Height(),
+					Size:    node.Size(),
+					Version: node.Version(),
 					Left:    nil,
-					Right:   node.rightHash,
+					Right:   node.RightHash(),
 				})
 			}
 			return false

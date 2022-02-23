@@ -50,12 +50,12 @@ func newExporter(tree *ImmutableTree) *Exporter {
 
 // export exports nodes
 func (e *Exporter) export(ctx context.Context) {
-	e.tree.root.traversePost(e.tree, true, func(node *TreeNode) bool {
+	e.tree.root.TraversePost(e.tree, true, func(node ComplexNode) bool {
 		exportNode := &ExportNode{
-			Key:     node.key,
-			Value:   node.value,
-			Version: node.version,
-			Height:  node.height,
+			Key:     node.Key(),
+			Value:   node.Value(),
+			Version: node.Version(),
+			Height:  node.Height(),
 		}
 
 		select {

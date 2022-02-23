@@ -13,6 +13,40 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ComplexNode interface {
+	Node
+	Hash() []byte
+	calcHeightAndSize(t *ImmutableTree)
+	Persisted() bool
+	SetPersisted(persisted bool)
+	Leaf() bool
+	Height() int8
+	TraversePost(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool
+	LeftHash() []byte
+	newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal
+	RightHash() []byte
+	LeftNode() *TreeNode
+	RightNode() *TreeNode
+	SetLeftHash(hash []byte)
+	SetRightHash(hash []byte)
+	_hash() []byte
+	get(t *ImmutableTree, key []byte) (index int64, value []byte)
+	setLeftNode(newLeftNode ComplexNode)
+	setRightNode(newRightNode ComplexNode)
+	getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte)
+	getLeftNodeFromTree(t *ImmutableTree) ComplexNode
+	getRightNodeFromTree(t *ImmutableTree) ComplexNode
+	Size() int64
+	clone(version int64) *TreeNode
+	hashWithCount() ([]byte, int64)
+	has(t *ImmutableTree, key []byte) (has bool)
+	traverse(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool
+	calcBalance(t *ImmutableTree) int
+	SetHash(hash []byte)
+	PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *TreeNode, error)
+	traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(node ComplexNode) bool) bool
+}
+
 // TreeNode represents a node in a Tree.
 type TreeNode struct {
 	key       []byte
@@ -26,6 +60,80 @@ type TreeNode struct {
 	rightNode *TreeNode
 	height    int8
 	persisted bool
+}
+
+func (node *TreeNode) SetHash(hash []byte) {
+	node.hash = hash
+}
+func (node *TreeNode) Size() int64 {
+	if node == nil {
+		panic("lol")
+	}
+	return node.size
+}
+func (node *TreeNode) setLeftNode(newLeftNode ComplexNode) {
+	if newLeftNode == nil {
+		node.leftNode = nil
+		return
+	}
+	node.leftNode = newLeftNode.(*TreeNode)
+}
+func (node *TreeNode) setRightNode(newRightNode ComplexNode) {
+	if newRightNode == nil {
+		node.rightNode = nil
+		return
+	}
+	node.rightNode = newRightNode.(*TreeNode)
+}
+
+func (node *TreeNode) SetLeftHash(hash []byte) {
+	node.leftHash = hash
+}
+func (node *TreeNode) SetRightHash(hash []byte) {
+	node.rightHash = hash
+}
+
+func (node *TreeNode) LeftNode() *TreeNode {
+	return node.leftNode
+}
+func (node *TreeNode) RightNode() *TreeNode {
+	return node.rightNode
+}
+
+func (node *TreeNode) LeftHash() []byte {
+	return node.leftHash
+}
+func (node *TreeNode) RightHash() []byte {
+	return node.rightHash
+}
+
+func (node *TreeNode) Height() int8 {
+	return node.height
+}
+
+func (node *TreeNode) Hash() []byte {
+	return node.hash
+}
+func (node *TreeNode) Persisted() bool {
+	return node.persisted
+}
+
+func (node *TreeNode) Version() int64 {
+	return node.version
+}
+
+func (node *TreeNode) Key() []byte {
+	return node.key
+}
+func (node *TreeNode) Value() []byte {
+	return node.value
+}
+func (node *TreeNode) SetKey(key []byte) {
+	node.key = key
+}
+
+func (node *TreeNode) SetPersisted(persisted bool) {
+	node.persisted = persisted
 }
 
 // NewNode returns a new node from a key, value and version.
@@ -82,7 +190,7 @@ func MakeNode(buf []byte) (*TreeNode, error) {
 
 	// Read node body.
 
-	if node.isLeaf() {
+	if node.Leaf() {
 		val, _, cause := decodeBytes(buf)
 		if cause != nil {
 			return nil, errors.Wrap(cause, "decoding node.value")
@@ -121,7 +229,7 @@ func (node *TreeNode) String() string {
 
 // clone creates a shallow copy of a node with its hash set to nil.
 func (node *TreeNode) clone(version int64) *TreeNode {
-	if node.isLeaf() {
+	if node.Leaf() {
 		panic("Attempt to copy a leaf node")
 	}
 	return &TreeNode{
@@ -138,7 +246,7 @@ func (node *TreeNode) clone(version int64) *TreeNode {
 	}
 }
 
-func (node *TreeNode) isLeaf() bool {
+func (node *TreeNode) Leaf() bool {
 	return node.height == 0
 }
 
@@ -147,13 +255,13 @@ func (node *TreeNode) has(t *ImmutableTree, key []byte) (has bool) {
 	if bytes.Equal(node.key, key) {
 		return true
 	}
-	if node.isLeaf() {
+	if node.Leaf() {
 		return false
 	}
 	if bytes.Compare(key, node.key) < 0 {
-		return node.getLeftNode(t).has(t, key)
+		return node.getLeftNodeFromTree(t).has(t, key)
 	}
-	return node.getRightNode(t).has(t, key)
+	return node.getRightNodeFromTree(t).has(t, key)
 }
 
 // Get a key under the node.
@@ -161,7 +269,7 @@ func (node *TreeNode) has(t *ImmutableTree, key []byte) (has bool) {
 // The index is the index in the list of leaf nodes sorted lexicographically by key. The leftmost leaf has index 0.
 // It's neighbor has index 1 and so on.
 func (node *TreeNode) get(t *ImmutableTree, key []byte) (index int64, value []byte) {
-	if node.isLeaf() {
+	if node.Leaf() {
 		switch bytes.Compare(node.key, key) {
 		case -1:
 			return 1, nil
@@ -173,16 +281,16 @@ func (node *TreeNode) get(t *ImmutableTree, key []byte) (index int64, value []by
 	}
 
 	if bytes.Compare(key, node.key) < 0 {
-		return node.getLeftNode(t).get(t, key)
+		return node.getLeftNodeFromTree(t).get(t, key)
 	}
-	rightNode := node.getRightNode(t)
+	rightNode := node.getRightNodeFromTree(t)
 	index, value = rightNode.get(t, key)
-	index += node.size - rightNode.size
+	index += node.size - rightNode.Size()
 	return index, value
 }
 
 func (node *TreeNode) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
-	if node.isLeaf() {
+	if node.Leaf() {
 		if index == 0 {
 			return node.key, node.value
 		}
@@ -190,12 +298,12 @@ func (node *TreeNode) getByIndex(t *ImmutableTree, index int64) (key []byte, val
 	}
 	// TODO: could improve this by storing the
 	// sizes as well as left/right hash.
-	leftNode := node.getLeftNode(t)
+	leftNode := node.getLeftNodeFromTree(t)
 
-	if index < leftNode.size {
+	if index < leftNode.Size() {
 		return leftNode.getByIndex(t, index)
 	}
-	return node.getRightNode(t).getByIndex(t, index-leftNode.size)
+	return node.getRightNodeFromTree(t).getByIndex(t, index-leftNode.Size())
 }
 
 // Computes the hash of the node without computing its descendants. Must be
@@ -305,7 +413,7 @@ func (node *TreeNode) writeHashBytes(w io.Writer) error {
 
 	// Key is not written for inner nodes, unlike WriteBytes.
 
-	if node.isLeaf() {
+	if node.Leaf() {
 		err = encodeBytes(w, node.key)
 		if err != nil {
 			return errors.Wrap(err, "writing key")
@@ -354,12 +462,12 @@ func (node *TreeNode) writeHashBytesRecursively(w io.Writer) (hashCount int64, e
 	return
 }
 
-func (node *TreeNode) encodedSize() int {
+func (node *TreeNode) EncodedSize() int {
 	n := 1 +
 		encodeVarintSize(node.size) +
 		encodeVarintSize(node.version) +
 		encodeBytesSize(node.key)
-	if node.isLeaf() {
+	if node.Leaf() {
 		n += encodeBytesSize(node.value)
 	} else {
 		n += encodeBytesSize(node.leftHash) +
@@ -369,7 +477,7 @@ func (node *TreeNode) encodedSize() int {
 }
 
 // Writes the node as a serialized byte slice to the supplied io.Writer.
-func (node *TreeNode) writeBytes(w io.Writer) error {
+func (node *TreeNode) WriteBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
@@ -392,7 +500,7 @@ func (node *TreeNode) writeBytes(w io.Writer) error {
 		return errors.Wrap(cause, "writing key")
 	}
 
-	if node.isLeaf() {
+	if node.Leaf() {
 		cause = encodeBytes(w, node.value)
 		if cause != nil {
 			return errors.Wrap(cause, "writing value")
@@ -417,14 +525,14 @@ func (node *TreeNode) writeBytes(w io.Writer) error {
 	return nil
 }
 
-func (node *TreeNode) getLeftNode(t *ImmutableTree) *TreeNode {
+func (node *TreeNode) getLeftNodeFromTree(t *ImmutableTree) ComplexNode {
 	if node.leftNode != nil {
 		return node.leftNode
 	}
 	return t.ndb.GetNode(node.leftHash)
 }
 
-func (node *TreeNode) getRightNode(t *ImmutableTree) *TreeNode {
+func (node *TreeNode) getRightNodeFromTree(t *ImmutableTree) ComplexNode {
 	if node.rightNode != nil {
 		return node.rightNode
 	}
@@ -433,29 +541,29 @@ func (node *TreeNode) getRightNode(t *ImmutableTree) *TreeNode {
 
 // NOTE: mutates height and size
 func (node *TreeNode) calcHeightAndSize(t *ImmutableTree) {
-	node.height = maxInt8(node.getLeftNode(t).height, node.getRightNode(t).height) + 1
-	node.size = node.getLeftNode(t).size + node.getRightNode(t).size
+	node.height = maxInt8(node.getLeftNodeFromTree(t).Height(), node.getRightNodeFromTree(t).Height()) + 1
+	node.size = node.getLeftNodeFromTree(t).Size() + node.getRightNodeFromTree(t).Size()
 }
 
 func (node *TreeNode) calcBalance(t *ImmutableTree) int {
-	return int(node.getLeftNode(t).height) - int(node.getRightNode(t).height)
+	return int(node.getLeftNodeFromTree(t).Height()) - int(node.getRightNodeFromTree(t).Height())
 }
 
 // traverse is a wrapper over traverseInRange when we want the whole tree
-func (node *TreeNode) traverse(t *ImmutableTree, ascending bool, cb func(*TreeNode) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node *TreeNode) bool {
+func (node *TreeNode) traverse(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool {
+	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node ComplexNode) bool {
 		return cb(node)
 	})
 }
 
 // traversePost is a wrapper over traverseInRange when we want the whole tree post-order
-func (node *TreeNode) traversePost(t *ImmutableTree, ascending bool, cb func(*TreeNode) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, true, func(node *TreeNode) bool {
+func (node *TreeNode) TraversePost(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool {
+	return node.traverseInRange(t, nil, nil, ascending, false, true, func(node ComplexNode) bool {
 		return cb(node)
 	})
 }
 
-func (node *TreeNode) traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*TreeNode) bool) bool {
+func (node *TreeNode) traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(node ComplexNode) bool) bool {
 	stop := false
 	t := node.newTraversal(tree, start, end, ascending, inclusive, post)
 	for node2 := t.next(); node2 != nil; node2 = t.next() {
@@ -469,8 +577,8 @@ func (node *TreeNode) traverseInRange(tree *ImmutableTree, start, end []byte, as
 
 // Only used in testing...
 func (node *TreeNode) lmd(t *ImmutableTree) *TreeNode {
-	if node.isLeaf() {
+	if node.Leaf() {
 		return node
 	}
-	return node.getLeftNode(t).lmd(t)
+	return node.getLeftNodeFromTree(t).(*TreeNode).lmd(t)
 }

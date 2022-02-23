@@ -78,11 +78,11 @@ func T(n *TreeNode) *MutableTree {
 }
 
 // Convenience for simple printing of keys & tree structure
-func P(n *TreeNode) string {
-	if n.height == 0 {
-		return fmt.Sprintf("%v", b2i(n.key))
+func P(n ComplexNode) string {
+	if n.Height() == 0 {
+		return fmt.Sprintf("%v", b2i(n.Key()))
 	}
-	return fmt.Sprintf("(%v %v)", P(n.leftNode), P(n.rightNode))
+	return fmt.Sprintf("(%v %v)", P(n.LeftNode()), P(n.RightNode()))
 }
 
 func randBytes(length int) []byte {

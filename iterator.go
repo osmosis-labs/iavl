@@ -6,7 +6,6 @@ package iavl
 import (
 	"bytes"
 	"errors"
-
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -38,7 +37,7 @@ func (node *TreeNode) newTraversal(tree *ImmutableTree, start, end []byte, ascen
 // children should be traversed. When delayed is set to false, the delayedNode is
 // already have expanded, and it could be immediately returned.
 type delayedNode struct {
-	node    *TreeNode
+	node    ComplexNode
 	delayed bool
 }
 
@@ -47,10 +46,10 @@ type delayedNodes []delayedNode
 func (nodes *delayedNodes) pop() (*TreeNode, bool) {
 	node := (*nodes)[len(*nodes)-1]
 	*nodes = (*nodes)[:len(*nodes)-1]
-	return node.node, node.delayed
+	return node.node.(*TreeNode), node.delayed
 }
 
-func (nodes *delayedNodes) push(node *TreeNode, delayed bool) {
+func (nodes *delayedNodes) push(node ComplexNode, delayed bool) {
 	*nodes = append(*nodes, delayedNode{node, delayed})
 }
 
@@ -111,40 +110,40 @@ func (t *traversal) next() *TreeNode {
 
 	// case of postorder. A-1 and B-1
 	// Recursively process left sub-tree, then right-subtree, then node itself.
-	if t.post && (!node.isLeaf() || (startOrAfter && beforeEnd)) {
+	if t.post && (!node.Leaf() || (startOrAfter && beforeEnd)) {
 		t.delayedNodes.push(node, false)
 	}
 
 	// case of branch node, traversing children. A-2.
-	if !node.isLeaf() {
+	if !node.Leaf() {
 		// if node is a branch node and the order is ascending,
 		// We traverse through the left subtree, then the right subtree.
 		if t.ascending {
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(node.getRightNodeFromTree(t.tree), true)
 			}
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(node.getLeftNodeFromTree(t.tree), true)
 			}
 		} else {
 			// if node is a branch node and the order is not ascending
 			// We traverse through the right subtree, then the left subtree.
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(node.getLeftNodeFromTree(t.tree), true)
 			}
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(node.getRightNodeFromTree(t.tree), true)
 			}
 		}
 	}
 
 	// case of preorder traversal. A-3 and B-2.
 	// Process root then (recursively) processing left child, then process right child
-	if !t.post && (!node.isLeaf() || (startOrAfter && beforeEnd)) {
+	if !t.post && (!node.Leaf() || (startOrAfter && beforeEnd)) {
 		return node
 	}
 
@@ -175,7 +174,6 @@ func NewIterator(start, end []byte, ascending bool, tree *ImmutableTree) dbm.Ite
 		valid: tree != nil,
 		t:     nil,
 	}
-
 	if iter.valid {
 		iter.t = tree.root.newTraversal(tree, start, end, ascending, false, false)
 		// Move iterator before the first element

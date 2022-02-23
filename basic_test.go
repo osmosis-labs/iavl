@@ -168,8 +168,8 @@ func TestUnit(t *testing.T) {
 			t.Fatalf("Expected %v new hashes, got %v", hashCount, count)
 		}
 		// nuke hashes and reconstruct hash, ensure it's the same.
-		tree.root.traverse(tree, true, func(node *TreeNode) bool {
-			node.hash = nil
+		tree.root.traverse(tree, true, func(node ComplexNode) bool {
+			node.SetHash(nil)
 			return false
 		})
 		// ensure that the new hash after nuking is the same as the old.
@@ -330,6 +330,7 @@ func TestIntegration(t *testing.T) {
 				t.Error("wrong value")
 			}
 		}
+
 		if tree.Size() != int64(len(records)-(i+1)) {
 			t.Error("size was wrong", tree.Size(), (len(records) - (i + 1)))
 		}
