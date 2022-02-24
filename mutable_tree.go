@@ -3,6 +3,7 @@ package iavl
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"runtime"
 	"sort"
@@ -32,7 +33,8 @@ type MutableTree struct {
 	versions                 map[int64]bool         // The previous, saved versions of the tree.
 	allRootLoaded            bool                   // Whether all roots are loaded or not(by LazyLoadVersion)
 	unsavedFastNodeAdditions map[string]*FastNode   // FastNodes that have not yet been saved to disk
-	unsavedFastNodeRemovals  map[string]interface{} // FastNodes that have not yet been removed from disk
+	unsavedFastNodeRemovals  map[string]struct{}   // FastNodes that have not yet been removed from disk
+	currentBatchSize		int                    // The estimate of the current size of the batch buffer to pre-allocate on commit 
 	ndb                      *nodeDB
 
 	mtx sync.RWMutex // versions Read/write lock.
@@ -55,7 +57,7 @@ func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTr
 		versions:                 map[int64]bool{},
 		allRootLoaded:            false,
 		unsavedFastNodeAdditions: make(map[string]*FastNode),
-		unsavedFastNodeRemovals:  make(map[string]interface{}),
+		unsavedFastNodeRemovals:  make(map[string]struct{}),
 		ndb:                      ndb,
 	}, nil
 }
@@ -660,7 +662,7 @@ func (tree *MutableTree) Rollback() {
 	}
 	tree.orphans = map[string]int64{}
 	tree.unsavedFastNodeAdditions = map[string]*FastNode{}
-	tree.unsavedFastNodeRemovals = map[string]interface{}{}
+	tree.unsavedFastNodeRemovals = map[string]struct{}{}
 }
 
 // GetVersioned gets the value at the specified key and version. The returned value must not be
@@ -722,6 +724,10 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		return nil, version, fmt.Errorf("version %d was already saved to different hash %X (existing hash %X)", version, newHash, existingHash)
 	}
 
+	if err := tree.ndb.NewBatchWithSize(tree.currentBatchSize); err != nil {
+		return nil, version, err
+	}
+
 	if tree.root == nil {
 		// There can still be orphans, for example if the root is the node being
 		// removed.
@@ -757,7 +763,7 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.lastSaved = tree.ImmutableTree.clone()
 	tree.orphans = map[string]int64{}
 	tree.unsavedFastNodeAdditions = make(map[string]*FastNode)
-	tree.unsavedFastNodeRemovals = make(map[string]interface{})
+	tree.unsavedFastNodeRemovals = make(map[string]struct{})
 
 	return tree.Hash(), version, nil
 }
@@ -782,13 +788,18 @@ func (tree *MutableTree) getUnsavedFastNodeAdditions() map[string]*FastNode {
 }
 
 // getUnsavedFastNodeRemovals returns unsaved FastNodes to remove
-func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]interface{} {
+func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]struct{} {
 	return tree.unsavedFastNodeRemovals
 }
 
 func (tree *MutableTree) addUnsavedAddition(key []byte, node *FastNode) {
-	delete(tree.unsavedFastNodeRemovals, string(key))
+	if _, ok := tree.unsavedFastNodeRemovals[string(key)]; ok {
+		delete(tree.unsavedFastNodeRemovals, string(key))
+		// See: https://github.com/syndtr/goleveldb/blob/2ae1ddf74ef7020251ff1ff0fe8daac21a157761/leveldb/batch.go#L89
+		tree.currentBatchSize -= (1 + binary.MaxVarintLen32 + len(key)) // TODO: extract method from here, fast_node.go and node.go
+	}
 	tree.unsavedFastNodeAdditions[string(key)] = node
+	tree.currentBatchSize += node.encodedFullSize()
 }
 
 func (tree *MutableTree) saveFastNodeAdditions() error {
@@ -807,8 +818,12 @@ func (tree *MutableTree) saveFastNodeAdditions() error {
 }
 
 func (tree *MutableTree) addUnsavedRemoval(key []byte) {
-	delete(tree.unsavedFastNodeAdditions, string(key))
-	tree.unsavedFastNodeRemovals[string(key)] = true
+	if node, ok := tree.unsavedFastNodeAdditions[string(key)]; ok {
+		delete(tree.unsavedFastNodeAdditions, string(key))
+		tree.currentBatchSize -= node.encodedFullSize()
+	}
+	tree.unsavedFastNodeRemovals[string(key)] = struct{}{}
+	tree.currentBatchSize += (1 + binary.MaxVarintLen32 + len(key)) // TODO: extract method from here, fast_node.go and node.go
 }
 
 func (tree *MutableTree) saveFastNodeRemovals() error {

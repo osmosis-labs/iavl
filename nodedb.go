@@ -878,6 +878,20 @@ func (ndb *nodeDB) Commit() error {
 	return nil
 }
 
+// Create a new batch with pre-allocated size. Old batch must be committed before
+// calling this function. Otherwise, its data will be lost.
+func (ndb *nodeDB) NewBatchWithSize(size int) error {
+	ndb.mtx.Lock()
+	defer ndb.mtx.Unlock()
+
+	if err := ndb.batch.Close(); err != nil {
+		return err
+	}
+
+	ndb.batch = ndb.db.NewBatchWithSize(size)
+	return nil
+}
+
 func (ndb *nodeDB) HasRoot(version int64) (bool, error) {
 	return ndb.db.Has(ndb.rootKey(version))
 }

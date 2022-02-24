@@ -30,7 +30,7 @@ type UnsavedFastIterator struct {
 
 	unsavedFastNodeAdditions map[string]*FastNode
 
-	unsavedFastNodeRemovals map[string]interface{}
+	unsavedFastNodeRemovals map[string]struct{}
 
 	unsavedFastNodesToSort []string
 
@@ -45,7 +45,7 @@ type UnsavedFastIterator struct {
 
 var _ dbm.Iterator = &UnsavedFastIterator{}
 
-func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsavedFastNodeAdditions map[string]*FastNode, unsavedFastNodeRemovals map[string]interface{}) *UnsavedFastIterator {
+func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsavedFastNodeAdditions map[string]*FastNode, unsavedFastNodeRemovals map[string]struct{}) *UnsavedFastIterator {
 
 	iter := &UnsavedFastIterator{
 		start:                    start,
@@ -149,7 +149,7 @@ func (iter *UnsavedFastIterator) Next() {
 	if iter.fastIterator.Valid() && iter.nextUnsavedNodeIdx < len(iter.unsavedFastNodesToSort) {
 		diskKeyStr := string(iter.fastIterator.Key())
 
-		if iter.unsavedFastNodeRemovals[diskKeyStr] != nil {
+		if _, ok := iter.unsavedFastNodeRemovals[diskKeyStr]; ok {
 			// If next fast node from disk is to be removed, skip it.
 			iter.fastIterator.Next()
 			iter.Next()
@@ -191,7 +191,7 @@ func (iter *UnsavedFastIterator) Next() {
 
 	// if only nodes on disk are left, we return them
 	if iter.fastIterator.Valid() {
-		if iter.unsavedFastNodeRemovals[string(iter.fastIterator.Key())] != nil {
+		if _, ok := iter.unsavedFastNodeRemovals[string(iter.fastIterator.Key())]; ok {
 			// If next fast node from disk is to be removed, skip it.
 			iter.fastIterator.Next()
 			iter.Next()
