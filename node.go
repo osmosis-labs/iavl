@@ -6,6 +6,7 @@ package iavl
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -354,8 +355,8 @@ func (node *Node) writeHashBytesRecursively(w io.Writer) (hashCount int64, err e
 	return
 }
 
-func (node *Node) encodedSize() int {
-	n := 1 +
+func (node *Node) encodedValueSize() int {
+	n :=
 		encodeVarintSize(node.size) +
 		encodeVarintSize(node.version) +
 		encodeBytesSize(node.key)
@@ -366,6 +367,11 @@ func (node *Node) encodedSize() int {
 			encodeBytesSize(node.rightHash)
 	}
 	return n
+}
+
+func (node *Node) encodedFullSize() int {
+	// See: https://github.com/syndtr/goleveldb/blob/2ae1ddf74ef7020251ff1ff0fe8daac21a157761/leveldb/batch.go#L89
+	return 1 + binary.MaxVarintLen32 + len(node.key) + node.encodedValueSize()
 }
 
 // Writes the node as a serialized byte slice to the supplied io.Writer.

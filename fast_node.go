@@ -1,8 +1,10 @@
 package iavl
 
 import (
-	"github.com/pkg/errors"
+	"encoding/binary"
 	"io"
+
+	"github.com/pkg/errors"
 )
 
 // NOTE: This file favors int64 as opposed to int for size/counts.
@@ -45,8 +47,14 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 	return fastNode, nil
 }
 
-func (node *FastNode) encodedSize() int {
+func (node *FastNode) encodedValueSize() int {
 	n := encodeVarintSize(node.versionLastUpdatedAt) + encodeBytesSize(node.value)
+	return n
+}
+
+func (node *FastNode) encodedFullSize() int {
+	// See: https://github.com/syndtr/goleveldb/blob/2ae1ddf74ef7020251ff1ff0fe8daac21a157761/leveldb/batch.go#L89
+	n := 1 + binary.MaxVarintLen32 + len(node.key) + node.encodedValueSize()
 	return n
 }
 

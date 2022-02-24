@@ -2,6 +2,7 @@ package iavl
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"math/rand"
 	"testing"
@@ -26,11 +27,13 @@ func TestNode_encodedSize(t *testing.T) {
 	}
 
 	// leaf node
-	require.Equal(t, 26, node.encodedSize())
+	require.Equal(t, 25, node.encodedValueSize())
+	require.Equal(t, 1 + binary.MaxVarintLen32 + len(node.key) + 25, node.encodedFullSize())
 
 	// non-leaf node
 	node.height = 1
-	require.Equal(t, 57, node.encodedSize())
+	require.Equal(t, 56, node.encodedValueSize())
+	require.Equal(t, 1 + binary.MaxVarintLen32 + len(node.key) + 56, node.encodedFullSize())
 }
 
 func TestNode_encode_decode(t *testing.T) {
@@ -144,7 +147,7 @@ func BenchmarkNode_encodedSize(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		node.encodedSize()
+		node.encodedValueSize()
 	}
 }
 
@@ -171,7 +174,7 @@ func BenchmarkNode_WriteBytes(b *testing.B) {
 		sub.ReportAllocs()
 		for i := 0; i < sub.N; i++ {
 			var buf bytes.Buffer
-			buf.Grow(node.encodedSize())
+			buf.Grow(node.encodedValueSize())
 			_ = node.writeBytes(&buf)
 		}
 	})

@@ -2,6 +2,7 @@ package iavl
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -15,9 +16,10 @@ func TestFastNode_encodedSize(t *testing.T) {
 		value:                randBytes(20),
 	}
 
-	expectedSize := 1 + len(fastNode.value) + 1
+	expectedValueSize := 1 + len(fastNode.value) + 1
 
-	require.Equal(t, expectedSize, fastNode.encodedSize())
+	require.Equal(t, expectedValueSize, fastNode.encodedValueSize())
+	require.Equal(t, 1 + binary.MaxVarintLen32 + len(fastNode.key) + expectedValueSize, fastNode.encodedFullSize())
 }
 
 func TestFastNode_encode_decode(t *testing.T) {

@@ -200,7 +200,7 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 
 	// Save node bytes to db.
 	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	buf.Grow(node.encodedValueSize())
 
 	if err := node.writeBytes(&buf); err != nil {
 		panic(err)
@@ -293,7 +293,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 
 	// Save node bytes to db.
 	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	buf.Grow(node.encodedValueSize())
 
 	if err := node.writeBytes(&buf); err != nil {
 		return fmt.Errorf("error while writing fastnode bytes. Err: %w", err)
