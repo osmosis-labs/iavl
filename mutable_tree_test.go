@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -276,7 +277,7 @@ func TestMutableTree_SetInitialVersion(t *testing.T) {
 }
 
 func BenchmarkMutableTree_Set(b *testing.B) {
-	db, err := db.NewDB("test", db.MemDBBackend, "")
+	db, err := db.NewDB("test", db.GoLevelDBBackend, "")
 	require.NoError(b, err)
 	t, err := NewMutableTree(db, 100000)
 	require.NoError(b, err)
@@ -290,6 +291,41 @@ func BenchmarkMutableTree_Set(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		t.Set(randBytes(10), []byte{})
+	}
+}
+
+func BenchmarkMutableTree_SetWithBatch(b *testing.B) {
+	dirName := "testDb"
+
+	const keySize = 10
+	const valSize = 10
+
+	numberKeyVals := 100000
+
+	b.ReportAllocs()
+
+	defer func() {
+		err := os.RemoveAll(dirName)
+		if err != nil {
+			b.Errorf("%+v\n", err)
+		}
+	}()
+
+	for i := 0; i < b.N; i++ {
+		db, err := db.NewDB(fmt.Sprintf("test-%d", i), db.GoLevelDBBackend, dirName)
+		defer func() {
+			db.Close()
+		}()
+		require.NoError(b, err)
+		t, err := NewMutableTree(db, 0)
+		require.NoError(b, err)
+		for i := 0; i < numberKeyVals; i++ {
+			t.Set(randBytes(keySize), randBytes(valSize))
+		}
+
+		b.ResetTimer()
+		_,_, err = t.SaveVersion()
+		require.NoError(b, err)
 	}
 }
 
