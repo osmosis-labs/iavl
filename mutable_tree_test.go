@@ -1001,6 +1001,83 @@ func TestUpgradeStorageToFast_Integration_Upgraded_GetFast_Success(t *testing.T)
 	})
 }
 
+func Test_Set_BatchGrowthSize_VariousRotations(t *testing.T) {
+	db := db.NewMemDB()
+
+	// index 0 is key, index 1 is value
+	keyVals := [][][]byte{
+		{[]byte("a"), randBytes(3)},
+		{[]byte("b"), randBytes(4)},
+		{[]byte("c"), randBytes(5)},
+		{[]byte("repeated"), []byte("repeated")},
+	}
+
+	// testing various rotations
+	insertOrders := [][]int{
+		{0, 1, 2}, // causes left rotation
+		{2, 1, 0}, // causes right rotation
+		{2, 0, 1}, // left right rotation
+		{0, 2, 1}, // right left rotation
+		{3, 3, 3}, // test repeated Set
+	}
+
+	for _, curOrder := range insertOrders {
+		t.Run("", func(t *testing.T) {
+			estimatedBatchSize := 0
+			tree, err := NewMutableTree(db, 0)
+			require.NoError(t, err)
+			for i, kvIndex := range curOrder {
+				if kvIndex == 3 && i > 0 {
+					// test repeated sets
+					require.True(t, tree.Set(keyVals[kvIndex][0], keyVals[kvIndex][1]))
+				} else {
+					// All keys are new
+					require.False(t, tree.Set(keyVals[kvIndex][0], keyVals[kvIndex][1]))
+				}
+
+				if kvIndex == 3 && i > 0 {
+					// This is the case of repeated sets
+					// Since we repeatedly set the same value, nothing is changed.
+					continue
+				}
+
+				if i == 0 {
+					// Root node estimate
+					estimatedBatchSize += estimateRootSetBatchSize(keyVals[kvIndex][0], keyVals[kvIndex][1])
+				} else {
+					// Post root new estimate
+					estimatedBatchSize += estimatePostRootNewSetBatchSize(keyVals[kvIndex][0], keyVals[kvIndex][1])
+				}
+				require.Equal(t, estimatedBatchSize, tree.currentBatchSize)
+			}
+		})
+	}
+}
+
+func estimateRootSetBatchSize(key, val []byte) int {
+	createdNodeLeaf := NewNode(key, val, 0, 0, 1)
+	createdFastNode := NewFastNode(createdNodeLeaf.key, createdNodeLeaf.value, 1)
+
+	return createdNodeLeaf.encodedFullSize() + createdFastNode.encodedFullSize()
+}
+
+func estimatePostRootNewSetBatchSize(key, val []byte) int {
+	oldNode := &Node{} // can be anything since it's a pointer
+	createdNodeLeaf := NewNode(key, val, 0, 1, 1)
+	createdFastNode := NewFastNode(createdNodeLeaf.key, createdNodeLeaf.value, 1)
+
+	createdNodeMid := &Node{
+		key:       createdNodeLeaf.key,
+		height:    1,
+		size:      2,
+		leftNode:  oldNode,
+		rightNode: createdNodeLeaf,
+		version:   1,
+	}
+
+	return createdNodeLeaf.encodedFullSize() + createdFastNode.encodedFullSize() + createdNodeMid.encodedFullSize()
+}
+
 func setupTreeAndMirrorForUpgrade(t *testing.T) (*MutableTree, [][]string) {
 	db := db.NewMemDB()
 

@@ -194,7 +194,8 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated
 
 	if tree.ImmutableTree.root == nil {
 		tree.addUnsavedAddition(key, NewFastNode(key, value, tree.version+1))
-		tree.ImmutableTree.root = NewNode(key, value, tree.version+1)
+		tree.ImmutableTree.root = NewNode(key, value, 0, 1, tree.version+1)
+		tree.currentBatchSize += tree.ImmutableTree.root.encodedFullSize()
 		return nil, updated
 	}
 
@@ -213,26 +214,40 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 
 		switch bytes.Compare(key, node.key) {
 		case -1:
-			return &Node{
+			leftNode := NewNode(key, value, 0, 1, version)
+			tree.currentBatchSize += leftNode.encodedFullSize()
+
+			newNode := &Node{
 				key:       node.key,
 				height:    1,
 				size:      2,
-				leftNode:  NewNode(key, value, version),
+				leftNode:  leftNode,
 				rightNode: node,
 				version:   version,
-			}, false
+			}
+			tree.currentBatchSize += newNode.encodedFullSize()
+			return newNode, false
 		case 1:
-			return &Node{
+			rightNode := NewNode(key, value, 0, 1, version)
+			tree.currentBatchSize += rightNode.encodedFullSize()
+
+			newNode := &Node{
 				key:       key,
 				height:    1,
 				size:      2,
 				leftNode:  node,
-				rightNode: NewNode(key, value, version),
+				rightNode: rightNode,
 				version:   version,
-			}, false
+			}
+			tree.currentBatchSize += newNode.encodedFullSize()
+			return newNode, false
 		default:
+			newNode := NewNode(key, value, 0, 1, version)
+			tree.currentBatchSize += newNode.encodedFullSize()
+			tree.currentBatchSize -= node.encodedFullSize()
+
 			*orphans = append(*orphans, node)
-			return NewNode(key, value, version), true
+			return newNode, true
 		}
 	} else {
 		*orphans = append(*orphans, node)
@@ -300,6 +315,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 			*orphans = append(*orphans, node)
 			return nil, nil, nil, node.value
 		}
+		tree.currentBatchSize -= node.encodedFullSize()
 		return node.hash, node, nil, nil
 	}
 
@@ -319,6 +335,9 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 		newNode.leftHash, newNode.leftNode = newLeftHash, newLeftNode
 		newNode.calcHeightAndSize(tree.ImmutableTree)
 		newNode = tree.balance(newNode, orphans)
+
+		tree.currentBatchSize -= node.encodedFullSize()
+		tree.currentBatchSize += newNode.encodedFullSize()
 		return newNode.hash, newNode, newKey, value
 	}
 	// node.key >= key; either found or look to the right:
@@ -339,6 +358,9 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 	}
 	newNode.calcHeightAndSize(tree.ImmutableTree)
 	newNode = tree.balance(newNode, orphans)
+
+	tree.currentBatchSize -= node.encodedFullSize()
+	tree.currentBatchSize += newNode.encodedFullSize()
 	return newNode.hash, newNode, nil, value
 }
 
@@ -798,6 +820,11 @@ func (tree *MutableTree) addUnsavedAddition(key []byte, node *FastNode) {
 		// See: https://github.com/syndtr/goleveldb/blob/2ae1ddf74ef7020251ff1ff0fe8daac21a157761/leveldb/batch.go#L89
 		tree.currentBatchSize -= (1 + binary.MaxVarintLen32 + len(key)) // TODO: extract method from here, fast_node.go and node.go
 	}
+
+	if elem, ok := tree.unsavedFastNodeAdditions[string(key)]; ok {
+		tree.currentBatchSize -= elem.encodedFullSize()
+	}
+
 	tree.unsavedFastNodeAdditions[string(key)] = node
 	tree.currentBatchSize += node.encodedFullSize()
 }
@@ -822,6 +849,11 @@ func (tree *MutableTree) addUnsavedRemoval(key []byte) {
 		delete(tree.unsavedFastNodeAdditions, string(key))
 		tree.currentBatchSize -= node.encodedFullSize()
 	}
+
+	if _, ok := tree.unsavedFastNodeRemovals[string(key)]; ok {
+		return
+	}
+
 	tree.unsavedFastNodeRemovals[string(key)] = struct{}{}
 	tree.currentBatchSize += (1 + binary.MaxVarintLen32 + len(key)) // TODO: extract method from here, fast_node.go and node.go
 }
@@ -951,6 +983,8 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, *Node) {
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
 
+	tree.currentBatchSize -= node.encodedFullSize()
+	tree.currentBatchSize += newNode.encodedFullSize()
 	return newNode, orphaned
 }
 
@@ -970,6 +1004,8 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, *Node) {
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
 
+	tree.currentBatchSize -= node.encodedFullSize()
+	tree.currentBatchSize += newNode.encodedFullSize()
 	return newNode, orphaned
 }
 

@@ -30,13 +30,13 @@ type Node struct {
 }
 
 // NewNode returns a new node from a key, value and version.
-func NewNode(key []byte, value []byte, version int64) *Node {
+func NewNode(key []byte, value []byte, height int8, size, version int64) *Node {
 	return &Node{
-		key:     key,
+		key:       key,
 		value:   value,
-		height:  0,
-		size:    1,
-		version: version,
+		height:    height,
+		size:      size,
+		version:   version,
 	}
 }
 

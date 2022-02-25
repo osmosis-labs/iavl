@@ -884,6 +884,10 @@ func (ndb *nodeDB) NewBatchWithSize(size int) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 
+	if size < 0 {
+		return errors.Errorf("batch size %d is negative", size)
+	}
+
 	if err := ndb.batch.Close(); err != nil {
 		return err
 	}
