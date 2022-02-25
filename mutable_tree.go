@@ -746,10 +746,6 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		return nil, version, fmt.Errorf("version %d was already saved to different hash %X (existing hash %X)", version, newHash, existingHash)
 	}
 
-	if err := tree.ndb.NewBatchWithSize(tree.currentBatchSize); err != nil {
-		return nil, version, err
-	}
-
 	if tree.root == nil {
 		// There can still be orphans, for example if the root is the node being
 		// removed.
@@ -760,6 +756,9 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		}
 	} else {
 		debug("SAVE TREE %v\n", version)
+		if err := tree.ndb.NewBatchWithSize(tree.currentBatchSize); err != nil {
+			return nil, version, err
+		}
 		tree.ndb.SaveBranch(tree.root)
 		tree.ndb.SaveOrphans(version, tree.orphans)
 		if err := tree.ndb.SaveRoot(tree.root, version); err != nil {
@@ -982,9 +981,6 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, *Node) {
 
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
-
-	tree.currentBatchSize -= node.encodedFullSize()
-	tree.currentBatchSize += newNode.encodedFullSize()
 	return newNode, orphaned
 }
 
@@ -1003,9 +999,6 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, *Node) {
 
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
-
-	tree.currentBatchSize -= node.encodedFullSize()
-	tree.currentBatchSize += newNode.encodedFullSize()
 	return newNode, orphaned
 }
 

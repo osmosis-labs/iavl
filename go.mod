@@ -19,4 +19,4 @@ require (
 	google.golang.org/grpc v1.44.0
 )
 
-replace github.com/tendermint/tm-db => github.com/osmosis-labs/tm-db v0.6.6-0.20220224030238-f2d0e3e7b97c
+replace github.com/tendermint/tm-db => github.com/osmosis-labs/tm-db v0.6.6-0.20220225161115-9fa28313fa58

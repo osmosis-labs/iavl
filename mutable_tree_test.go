@@ -1009,17 +1009,17 @@ func Test_Set_BatchGrowthSize_VariousRotations(t *testing.T) {
 		{[]byte("a"), randBytes(3)},
 		{[]byte("b"), randBytes(4)},
 		{[]byte("c"), randBytes(5)},
+		{[]byte("d"), randBytes(6)},
 		{[]byte("repeated"), []byte("repeated")},
 	}
 
 	// testing various rotations
 	insertOrders := [][]int{
-		{0, 1, 2}, // causes left rotation
-		{2, 1, 0}, // causes right rotation
-		{2, 0, 1}, // left right rotation
-		{0, 2, 1}, // right left rotation
-		{3, 3, 3}, // test repeated Set
+		{0, 1, 2, 3}, // causes left rotation
+		{3, 2, 1, 0}, // causes right rotation
+		{4, 4, 4, 4}, // test repeated Set
 	}
+	const repeatedIndex = 4
 
 	for _, curOrder := range insertOrders {
 		t.Run("", func(t *testing.T) {
@@ -1027,7 +1027,7 @@ func Test_Set_BatchGrowthSize_VariousRotations(t *testing.T) {
 			tree, err := NewMutableTree(db, 0)
 			require.NoError(t, err)
 			for i, kvIndex := range curOrder {
-				if kvIndex == 3 && i > 0 {
+				if kvIndex == repeatedIndex && i > 0 {
 					// test repeated sets
 					require.True(t, tree.Set(keyVals[kvIndex][0], keyVals[kvIndex][1]))
 				} else {
@@ -1035,7 +1035,7 @@ func Test_Set_BatchGrowthSize_VariousRotations(t *testing.T) {
 					require.False(t, tree.Set(keyVals[kvIndex][0], keyVals[kvIndex][1]))
 				}
 
-				if kvIndex == 3 && i > 0 {
+				if kvIndex == repeatedIndex && i > 0 {
 					// This is the case of repeated sets
 					// Since we repeatedly set the same value, nothing is changed.
 					continue
