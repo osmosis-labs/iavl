@@ -226,8 +226,10 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) bool {
 // Iterator returns an iterator over the immutable tree.
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	if t.IsFastCacheEnabled() {
+		fmt.Println("immutable tree - iterator - use fast")
 		return NewFastIterator(start, end, ascending, t.ndb)
 	} else {
+		fmt.Println("immutable tree - iterator - use regular")
 		return NewIterator(start, end, ascending, t)
 	}
 }
