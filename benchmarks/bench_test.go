@@ -245,7 +245,6 @@ type benchmark struct {
 
 func BenchmarkMedium(b *testing.B) {
 	benchmarks := []benchmark{
-		{"memdb", 100000, 100, 16, 40},
 		{"goleveldb", 100000, 100, 16, 40},
 		// FIXME: this crashes on init! Either remove support, or make it work.
 		// {"cleveldb", 100000, 100, 16, 40},
@@ -348,41 +347,41 @@ func runSuite(b *testing.B, d db.DB, initSize, blockSize, keyLen, dataLen int) {
 
 	b.ResetTimer()
 
-	b.Run("query-no-in-tree-guarantee-fast", func(sub *testing.B) {
-		sub.ReportAllocs()
-		runQueriesFast(sub, t, keyLen)
-	})
-	b.Run("query-no-in-tree-guarantee-slow", func(sub *testing.B) {
-		sub.ReportAllocs()
-		runQueriesSlow(sub, t, keyLen)
-	})
+	// b.Run("query-no-in-tree-guarantee-fast", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	runQueriesFast(sub, t, keyLen)
+	// })
+	// b.Run("query-no-in-tree-guarantee-slow", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	runQueriesSlow(sub, t, keyLen)
+	// })
 	//
 	b.Run("query-hits-fast", func(sub *testing.B) {
 		sub.ReportAllocs()
 		runKnownQueriesFast(sub, t, keys)
 	})
-	b.Run("query-hits-slow", func(sub *testing.B) {
-		sub.ReportAllocs()
-		runKnownQueriesSlow(sub, t, keys)
-	})
+	// b.Run("query-hits-slow", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	runKnownQueriesSlow(sub, t, keys)
+	// })
 	//
-	b.Run("iteration-fast", func(sub *testing.B) {
-		sub.ReportAllocs()
-		runIterationFast(sub, t, initSize)
-	})
-	b.Run("iteration-slow", func(sub *testing.B) {
-		sub.ReportAllocs()
-		runIterationSlow(sub, t, initSize)
-	})
+	// b.Run("iteration-fast", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	runIterationFast(sub, t, initSize)
+	// })
+	// b.Run("iteration-slow", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	runIterationSlow(sub, t, initSize)
+	// })
 	//
-	b.Run("update", func(sub *testing.B) {
-		sub.ReportAllocs()
-		t = runUpdate(sub, t, dataLen, blockSize, keys)
-	})
-	b.Run("block", func(sub *testing.B) {
-		sub.ReportAllocs()
-		t = runBlock(sub, t, keyLen, dataLen, blockSize, keys)
-	})
+	// b.Run("update", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	t = runUpdate(sub, t, dataLen, blockSize, keys)
+	// })
+	// b.Run("block", func(sub *testing.B) {
+	// 	sub.ReportAllocs()
+	// 	t = runBlock(sub, t, keyLen, dataLen, blockSize, keys)
+	// })
 
 	// both of these edit size of the tree too much
 	// need to run with their own tree

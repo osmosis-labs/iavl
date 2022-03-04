@@ -1,0 +1,122 @@
+iavl: 
+git commit: 
+git branch: 
+go version go1.17.3 linux/amd64
+
+Init Tree took 48.34 MB
+goos: linux
+goarch: amd64
+pkg: github.com/cosmos/iavl/benchmarks
+cpu: AMD Ryzen 7 3700X 8-Core Processor             
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-fast-16         	  390157	      2903 ns/op	     814 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-fast-16         	  399000	      2963 ns/op	     814 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-fast-16         	  402136	      3179 ns/op	     814 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-fast-16         	  420476	      2937 ns/op	     814 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-fast-16         	  417190	      3076 ns/op	     814 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-slow-16         	  113926	      9762 ns/op	    1409 B/op	      24 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-slow-16         	  105357	      9851 ns/op	    1406 B/op	      24 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-slow-16         	  109642	      9834 ns/op	    1405 B/op	      24 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-slow-16         	  103359	      9763 ns/op	    1406 B/op	      24 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-no-in-tree-guarantee-slow-16         	  125224	     10063 ns/op	    1409 B/op	      24 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-fast-16                         	  345147	      3447 ns/op	     886 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-fast-16                         	  353240	      3364 ns/op	     886 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-fast-16                         	  350920	      3338 ns/op	     886 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-fast-16                         	  372626	      3307 ns/op	     886 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-fast-16                         	  367660	      3294 ns/op	     886 B/op	      16 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-slow-16                         	   86119	     12926 ns/op	    1990 B/op	      34 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-slow-16                         	   83398	     12708 ns/op	    1990 B/op	      34 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-slow-16                         	   86103	     14252 ns/op	    2003 B/op	      34 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-slow-16                         	   90589	     13302 ns/op	    1989 B/op	      34 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/query-hits-slow-16                         	   85428	     13497 ns/op	    2000 B/op	      34 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16                          	      21	  68717304 ns/op	29327113 B/op	  522985 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+	... [output truncated]
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16                          	      15	  70264586 ns/op	29327162 B/op	  522985 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+	... [output truncated]
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16                          	      18	  70958463 ns/op	29327138 B/op	  522985 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+	... [output truncated]
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16                          	      15	  72209305 ns/op	29327158 B/op	  522985 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+	... [output truncated]
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16                          	      22	  73218143 ns/op	29327098 B/op	  522985 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-fast-16
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+    bench_test.go:143: completed 100000 iterations
+	... [output truncated]
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16                          	       1	1103013134 ns/op	234491104 B/op	 3991442 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16
+    bench_test.go:143: completed 100000 iterations
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16                          	       1	1259815260 ns/op	276134112 B/op	 4705557 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16
+    bench_test.go:143: completed 100000 iterations
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16                          	       1	1268760085 ns/op	276095808 B/op	 4705374 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16
+    bench_test.go:143: completed 100000 iterations
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16                          	       1	1308360325 ns/op	276080216 B/op	 4705371 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16
+    bench_test.go:143: completed 100000 iterations
+BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16                          	       1	1276755134 ns/op	276095856 B/op	 4705377 allocs/op
+--- BENCH: BenchmarkMedium/goleveldb-100000-100-16-40/iteration-slow-16
+    bench_test.go:143: completed 100000 iterations
+BenchmarkMedium/goleveldb-100000-100-16-40/update-16                                  	    9696	    146592 ns/op	   47615 B/op	     475 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/update-16                                  	    6853	    181887 ns/op	   51788 B/op	     542 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/update-16                                  	    7207	    181912 ns/op	   54073 B/op	     614 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/update-16                                  	    6890	    183622 ns/op	   54070 B/op	     604 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/update-16                                  	    6342	    194800 ns/op	   55598 B/op	     597 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/block-16                                   	      39	  26758858 ns/op	 7043085 B/op	   77740 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/block-16                                   	      55	  23525001 ns/op	 6802199 B/op	   73821 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/block-16                                   	      46	  23722432 ns/op	 6539204 B/op	   72672 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/block-16                                   	      70	  23866420 ns/op	 6759421 B/op	   74000 allocs/op
+BenchmarkMedium/goleveldb-100000-100-16-40/block-16                                   	      48	  27214536 ns/op	 7338237 B/op	   76913 allocs/op
+PASS
+ok  	github.com/cosmos/iavl/benchmarks	69.591s
