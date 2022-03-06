@@ -16,35 +16,21 @@ import (
 type ComplexNode interface {
 	Node
 	Hash() []byte
-	calcHeightAndSize(t *ImmutableTree)
 	Persisted() bool
 	SetPersisted(persisted bool)
 	Leaf() bool
 	Height() int8
-	TraversePost(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool
 	LeftHash() []byte
-	newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal
 	RightHash() []byte
 	LeftNode() *TreeNode
 	RightNode() *TreeNode
 	SetLeftHash(hash []byte)
 	SetRightHash(hash []byte)
 	_hash() []byte
-	get(t *ImmutableTree, key []byte) (index int64, value []byte)
 	setLeftNode(newLeftNode ComplexNode)
 	setRightNode(newRightNode ComplexNode)
-	getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte)
-	getLeftNodeFromTree(t *ImmutableTree) ComplexNode
-	getRightNodeFromTree(t *ImmutableTree) ComplexNode
 	Size() int64
-	clone(version int64) *TreeNode
-	hashWithCount() ([]byte, int64)
-	has(t *ImmutableTree, key []byte) (has bool)
-	traverse(t *ImmutableTree, ascending bool, cb func(node ComplexNode) bool) bool
-	calcBalance(t *ImmutableTree) int
 	SetHash(hash []byte)
-	PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *TreeNode, error)
-	traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(node ComplexNode) bool) bool
 }
 
 // TreeNode represents a node in a Tree.
@@ -525,14 +511,14 @@ func (node *TreeNode) WriteBytes(w io.Writer) error {
 	return nil
 }
 
-func (node *TreeNode) getLeftNodeFromTree(t *ImmutableTree) ComplexNode {
+func (node *TreeNode) getLeftNodeFromTree(t *ImmutableTree) *TreeNode {
 	if node.leftNode != nil {
 		return node.leftNode
 	}
 	return t.ndb.GetNode(node.leftHash)
 }
 
-func (node *TreeNode) getRightNodeFromTree(t *ImmutableTree) ComplexNode {
+func (node *TreeNode) getRightNodeFromTree(t *ImmutableTree) *TreeNode {
 	if node.rightNode != nil {
 		return node.rightNode
 	}
@@ -580,5 +566,5 @@ func (node *TreeNode) lmd(t *ImmutableTree) *TreeNode {
 	if node.Leaf() {
 		return node
 	}
-	return node.getLeftNodeFromTree(t).(*TreeNode).lmd(t)
+	return node.getLeftNodeFromTree(t).lmd(t)
 }

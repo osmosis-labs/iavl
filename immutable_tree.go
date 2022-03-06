@@ -75,7 +75,7 @@ func defaultNodeEncoder(id []byte, depth int, isLeaf bool) string {
 	return fmt.Sprintf("%s%X", prefix, id)
 }
 
-func (t *ImmutableTree) renderNode(node ComplexNode, indent string, depth int, encoder func([]byte, int, bool) string) []string {
+func (t *ImmutableTree) renderNode(node *TreeNode, indent string, depth int, encoder func([]byte, int, bool) string) []string {
 	prefix := strings.Repeat(indent, depth)
 	// handle nil
 	if node == nil {

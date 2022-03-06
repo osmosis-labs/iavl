@@ -9,7 +9,7 @@ import (
 // The Tree on the other hand favors int.  This is intentional.
 
 type Node interface {
-	Key() []byte
+	NodeKey
 	Value() []byte
 	SetKey(key []byte)
 	Version() int64

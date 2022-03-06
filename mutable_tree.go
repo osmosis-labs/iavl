@@ -117,8 +117,26 @@ func (tree *MutableTree) String() (string, error) {
 
 // Set/Remove will orphan at most tree.Height nodes,
 // balancing the tree after a Set/Remove will orphan at most 3 nodes.
-func (tree *MutableTree) prepareOrphansSlice() []ComplexNode {
-	return make([]ComplexNode, 0, tree.Height()+3)
+func (tree *MutableTree) prepareOrphansSlice() []OrphanedNode {
+	return make([]OrphanedNode, 0, tree.Height()+3)
+}
+
+type NodeKey interface {
+	Key() []byte
+}
+
+type NodeHash interface {
+	Hash() []byte
+}
+
+type NodeVersion interface {
+	Version() int64
+}
+
+type OrphanedNode interface {
+	NodeHash
+	NodeVersion
+	Persisted() bool
 }
 
 // Set sets a key in the working tree. Nil values are invalid. The given
@@ -126,7 +144,7 @@ func (tree *MutableTree) prepareOrphansSlice() []ComplexNode {
 // to slices stored within IAVL. It returns true when an existing value was
 // updated, while false means it was a new key.
 func (tree *MutableTree) Set(key, value []byte) (updated bool) {
-	var orphaned []ComplexNode
+	var orphaned []OrphanedNode
 	orphaned, updated = tree.set(key, value)
 	tree.addOrphans(orphaned)
 	return updated
@@ -188,7 +206,7 @@ func (t *MutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return t.ImmutableTree.Iterator(start, end, ascending)
 }
 
-func (tree *MutableTree) set(key []byte, value []byte) (orphans []ComplexNode, updated bool) {
+func (tree *MutableTree) set(key []byte, value []byte) (orphans []OrphanedNode, updated bool) {
 	if value == nil {
 		panic(fmt.Sprintf("Attempt to store nil value at key '%s'", key))
 	}
@@ -204,7 +222,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphans []ComplexNode, u
 	return orphans, updated
 }
 
-func (tree *MutableTree) recursiveSet(node ComplexNode, key []byte, value []byte, orphans *[]ComplexNode) (
+func (tree *MutableTree) recursiveSet(node *TreeNode, key []byte, value []byte, orphans *[]OrphanedNode) (
 	newSelf *TreeNode, updated bool,
 ) {
 	version := tree.version + 1
@@ -219,7 +237,7 @@ func (tree *MutableTree) recursiveSet(node ComplexNode, key []byte, value []byte
 				height:    1,
 				size:      2,
 				leftNode:  NewNode(key, value, version),
-				rightNode: node.(*TreeNode),
+				rightNode: node,
 				version:   version,
 			}, false
 		case 1:
@@ -227,7 +245,7 @@ func (tree *MutableTree) recursiveSet(node ComplexNode, key []byte, value []byte
 				key:       key,
 				height:    1,
 				size:      2,
-				leftNode:  node.(*TreeNode),
+				leftNode:  node,
 				rightNode: NewNode(key, value, version),
 				version:   version,
 			}, false
@@ -252,7 +270,7 @@ func (tree *MutableTree) recursiveSet(node ComplexNode, key []byte, value []byte
 		}
 
 		if updated {
-			return node.(*TreeNode), updated
+			return node, updated
 		}
 		node.calcHeightAndSize(tree.ImmutableTree)
 		newNode := tree.balance(node, orphans)
@@ -270,7 +288,7 @@ func (tree *MutableTree) Remove(key []byte) ([]byte, bool) {
 
 // remove tries to remove a key from the tree and if removed, returns its
 // value, nodes orphaned and 'true'.
-func (tree *MutableTree) remove(key []byte) (value []byte, orphaned []ComplexNode, removed bool) {
+func (tree *MutableTree) remove(key []byte) (value []byte, orphaned []OrphanedNode, removed bool) {
 	if tree.root == nil {
 		return nil, nil, false
 	}
@@ -297,7 +315,7 @@ func (tree *MutableTree) remove(key []byte) (value []byte, orphaned []ComplexNod
 // - new leftmost leaf key for tree after successfully removing 'key' if changed.
 // - the removed value
 // - the orphaned nodes.
-func (tree *MutableTree) recursiveRemove(node ComplexNode, key []byte, orphans *[]ComplexNode) (newHash []byte, newSelf *TreeNode, newKey []byte, newValue []byte) {
+func (tree *MutableTree) recursiveRemove(node *TreeNode, key []byte, orphans *[]OrphanedNode) (newHash []byte, newSelf *TreeNode, newKey []byte, newValue []byte) {
 	version := tree.version + 1
 
 	if node.Leaf() {
@@ -305,7 +323,7 @@ func (tree *MutableTree) recursiveRemove(node ComplexNode, key []byte, orphans *
 			*orphans = append(*orphans, node)
 			return nil, nil, nil, node.Value()
 		}
-		return node.Hash(), node.(*TreeNode), nil, nil
+		return node.Hash(), node, nil, nil
 	}
 
 	// node.key < key; we go to the left to find the key:
@@ -313,7 +331,7 @@ func (tree *MutableTree) recursiveRemove(node ComplexNode, key []byte, orphans *
 		newLeftHash, newLeftNode, newKey, value := tree.recursiveRemove(node.getLeftNodeFromTree(tree.ImmutableTree), key, orphans) //nolint:govet
 
 		if len(*orphans) == 0 {
-			return node.Hash(), node.(*TreeNode), nil, value
+			return node.Hash(), node, nil, value
 		}
 		*orphans = append(*orphans, node)
 		if newLeftHash == nil && newLeftNode == nil { // left node held value, was removed
@@ -330,7 +348,7 @@ func (tree *MutableTree) recursiveRemove(node ComplexNode, key []byte, orphans *
 	newRightHash, newRightNode, newKey, value := tree.recursiveRemove(node.getRightNodeFromTree(tree.ImmutableTree), key, orphans)
 
 	if len(*orphans) == 0 {
-		return node.Hash(), node.(*TreeNode), nil, value
+		return node.Hash(), node, nil, value
 	}
 	*orphans = append(*orphans, node)
 	if newRightHash == nil && newRightNode == nil { // right node held value, was removed
@@ -849,7 +867,7 @@ func (tree *MutableTree) deleteVersion(version int64) error {
 }
 
 // SetInitialVersion sets the initial version of the tree, replacing Options.InitialVersion.
-// It is only used during the initial SaveVersion() call for a tree with no other versions,
+// It is only used during the initial SaveVersion() call for a tree owith no other versions,
 // and is otherwise ignored.
 func (tree *MutableTree) SetInitialVersion(version uint64) {
 	tree.ndb.opts.InitialVersion = version
@@ -928,7 +946,7 @@ func (tree *MutableTree) DeleteVersion(version int64) error {
 }
 
 // Rotate right and return the new node and orphan.
-func (tree *MutableTree) rotateRight(node ComplexNode) (*TreeNode, *TreeNode) {
+func (tree *MutableTree) rotateRight(node *TreeNode) (*TreeNode, *TreeNode) {
 	version := tree.version + 1
 
 	// TODO: optimize balance & rotate.
@@ -945,11 +963,11 @@ func (tree *MutableTree) rotateRight(node ComplexNode) (*TreeNode, *TreeNode) {
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
 
-	return newNode, orphaned.(*TreeNode)
+	return newNode, orphaned
 }
 
 // Rotate left and return the new node and orphan.
-func (tree *MutableTree) rotateLeft(node ComplexNode) (*TreeNode, *TreeNode) {
+func (tree *MutableTree) rotateLeft(node *TreeNode) (*TreeNode, *TreeNode) {
 	version := tree.version + 1
 
 	// TODO: optimize balance & rotate.
@@ -958,19 +976,19 @@ func (tree *MutableTree) rotateLeft(node ComplexNode) (*TreeNode, *TreeNode) {
 	newNode := orphaned.clone(version)
 
 	newNodelHash, newNodelCached := newNode.leftHash, newNode.leftNode
-	newNode.leftHash, newNode.leftNode = node.Hash(), node.(*TreeNode)
+	newNode.leftHash, newNode.leftNode = node.Hash(), node
 	node.SetRightHash(newNodelHash)
 	node.setRightNode(newNodelCached)
 
 	node.calcHeightAndSize(tree.ImmutableTree)
 	newNode.calcHeightAndSize(tree.ImmutableTree)
 
-	return newNode, orphaned.(*TreeNode)
+	return newNode, orphaned
 }
 
 // NOTE: assumes that node can be modified
 // TODO: optimize balance & rotate
-func (tree *MutableTree) balance(node ComplexNode, orphans *[]ComplexNode) (newSelf *TreeNode) {
+func (tree *MutableTree) balance(node *TreeNode, orphans *[]OrphanedNode) (newSelf *TreeNode) {
 	if node.Persisted() {
 		panic("Unexpected balance() call on persisted node")
 	}
@@ -1014,10 +1032,10 @@ func (tree *MutableTree) balance(node ComplexNode, orphans *[]ComplexNode) (newS
 		return newNode
 	}
 	// Nothing changed
-	return node.(*TreeNode)
+	return node
 }
 
-func (tree *MutableTree) addOrphans(orphans []ComplexNode) {
+func (tree *MutableTree) addOrphans(orphans []OrphanedNode) {
 	for _, node := range orphans {
 		if !node.Persisted() {
 			// We don't need to orphan nodes that were never persisted.
