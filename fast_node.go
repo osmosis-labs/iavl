@@ -8,32 +8,28 @@ import (
 // NOTE: This file favors int64 as opposed to int for size/counts.
 // The Tree on the other hand favors int.  This is intentional.
 
-type Node interface {
-	NodeKey
-	Value() []byte
-	SetKey(key []byte)
-	Version() int64
-	WriteBytes(w io.Writer) error
-	EncodedSize() int
-}
 type FastNode struct {
 	key                  []byte
 	versionLastUpdatedAt int64
 	value                []byte
 }
 
+// Value of leaf node. If inner node, value = nil
 func (node *FastNode) Value() []byte {
 	return node.value
 }
 
+// Key returns key of node
 func (node *FastNode) Key() []byte {
 	return node.key
 }
 
+// SetKey for node
 func (node *FastNode) SetKey(key []byte) {
 	node.key = key
 }
 
+// Version node was last updated at
 func (node *FastNode) Version() int64 {
 	return node.versionLastUpdatedAt
 }

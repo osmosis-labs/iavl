@@ -13,25 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ComplexNode interface {
-	Node
-	Hash() []byte
-	Persisted() bool
-	SetPersisted(persisted bool)
-	Leaf() bool
-	Height() int8
-	LeftHash() []byte
-	RightHash() []byte
-	LeftNode() *TreeNode
-	RightNode() *TreeNode
-	SetLeftHash(hash []byte)
-	SetRightHash(hash []byte)
-	_hash() []byte
-	setLeftNode(newLeftNode ComplexNode)
-	setRightNode(newRightNode ComplexNode)
-	Size() int64
-	SetHash(hash []byte)
-}
 
 // TreeNode represents a node in a Tree.
 type TreeNode struct {
@@ -47,16 +28,16 @@ type TreeNode struct {
 	height    int8
 	persisted bool
 }
-
+// set Hash for node
 func (node *TreeNode) SetHash(hash []byte) {
 	node.hash = hash
 }
+
+// Size is the number of leaves that are under current node. Leaf nodes have size = 1
 func (node *TreeNode) Size() int64 {
-	if node == nil {
-		panic("lol")
-	}
 	return node.size
 }
+
 func (node *TreeNode) setLeftNode(newLeftNode ComplexNode) {
 	if newLeftNode == nil {
 		node.leftNode = nil
@@ -64,6 +45,7 @@ func (node *TreeNode) setLeftNode(newLeftNode ComplexNode) {
 	}
 	node.leftNode = newLeftNode.(*TreeNode)
 }
+
 func (node *TreeNode) setRightNode(newRightNode ComplexNode) {
 	if newRightNode == nil {
 		node.rightNode = nil
@@ -72,52 +54,72 @@ func (node *TreeNode) setRightNode(newRightNode ComplexNode) {
 	node.rightNode = newRightNode.(*TreeNode)
 }
 
+// Set node copy of left child hash
 func (node *TreeNode) SetLeftHash(hash []byte) {
 	node.leftHash = hash
 }
+
+// Set node copy of right child hash
 func (node *TreeNode) SetRightHash(hash []byte) {
 	node.rightHash = hash
 }
 
+// Returns pointer to LeftNode()
 func (node *TreeNode) LeftNode() *TreeNode {
 	return node.leftNode
 }
+
+// Returns pointer to RightNode()
 func (node *TreeNode) RightNode() *TreeNode {
 	return node.rightNode
 }
 
+// Returns pointer to LeftHash()
 func (node *TreeNode) LeftHash() []byte {
 	return node.leftHash
 }
+
+// Returns pointer to RightHash()
 func (node *TreeNode) RightHash() []byte {
 	return node.rightHash
 }
 
+// Height of node. Leaf nodes have height 0
 func (node *TreeNode) Height() int8 {
 	return node.height
 }
 
+// Hash of size, leftHash and rightHash
 func (node *TreeNode) Hash() []byte {
 	return node.hash
 }
+
+// Returns whether node is Persisted to disk
 func (node *TreeNode) Persisted() bool {
 	return node.persisted
 }
 
+// Returns version of the IAVL that this node was first added in
 func (node *TreeNode) Version() int64 {
 	return node.version
 }
 
+// Key of the node
 func (node *TreeNode) Key() []byte {
 	return node.key
 }
+
+// Value of the node
 func (node *TreeNode) Value() []byte {
 	return node.value
 }
+
+// SetKey of the node
 func (node *TreeNode) SetKey(key []byte) {
 	node.key = key
 }
 
+// SetPersisted for Node
 func (node *TreeNode) SetPersisted(persisted bool) {
 	node.persisted = persisted
 }
@@ -232,6 +234,7 @@ func (node *TreeNode) clone(version int64) *TreeNode {
 	}
 }
 
+// Reaturn if node is Leaf()
 func (node *TreeNode) Leaf() bool {
 	return node.height == 0
 }

@@ -121,21 +121,9 @@ func (tree *MutableTree) prepareOrphansSlice() []OrphanedNode {
 	return make([]OrphanedNode, 0, tree.Height()+3)
 }
 
-type NodeKey interface {
-	Key() []byte
-}
-
-type NodeHash interface {
-	Hash() []byte
-}
-
-type NodeVersion interface {
-	Version() int64
-}
-
 type OrphanedNode interface {
-	NodeHash
-	NodeVersion
+	Hash() []byte
+	Version() int64
 	Persisted() bool
 }
 
