@@ -1,10 +1,12 @@
 package cache_test
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 
 	"github.com/cosmos/iavl/cache"
+	// "github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -163,4 +165,75 @@ func Test_Cache_Add(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkAdd(b *testing.B) {
+	b.ReportAllocs()
+	testcases := map[string]struct {
+		cacheLimit          int
+		keySize int
+	}{
+		"small - limit: 10K, key size - 10b": {
+			cacheLimit: 10000,
+			keySize: 10,
+		},
+		"med - limit: 100K, key size 20b": {
+			cacheLimit: 100000,
+			keySize: 20,
+		},
+		"large - limit: 1M, key size 30b": {
+			cacheLimit: 1000000,
+			keySize: 30,
+		},
+	}
+
+	for name, tc := range testcases {
+		cache := cache.New(tc.cacheLimit)
+		b.Run(name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				cache.Add(&testNode{
+					key: randBytes(tc.keySize),
+				})
+			}
+		})
+	}
+}
+
+// func BenchmarkRemove(b *testing.B) {
+// 	b.ReportAllocs()
+
+// 	b.StopTimer()
+// 	cache := cache.New(10000)
+// 	existentKeyMirror := [][]byte{}
+// 	// Populate cache
+// 	for i := 0; i < 10000; i++ {
+// 		key := randBytes(10)
+
+// 		existentKeyMirror = append(existentKeyMirror, key)
+
+// 		cache.Add(&testNode{
+// 			key: key,
+// 		})
+// 	}
+
+// 	// r := common.NewRand()
+
+// 	// var key []byte
+
+// 	for i := 0; i < b.N; i++ {
+// 		// b.StopTimer()
+// 		// key = existentKeyMirror[r.Intn(len(existentKeyMirror))]
+// 		// b.StartTimer()
+
+// 		_ = cache.Remove(randBytes(10))
+// 	}
+// }
+
+func randBytes(length int) []byte {
+	key := make([]byte, length)
+	// math.rand.Read always returns err=nil
+	// we do not need cryptographic randomness for this test:
+	//nolint:gosec
+	rand.Read(key)
+	return key
 }
