@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
-      - name: test & coverage report creation
+      - name: test
         # Some tests, notably TestRandomOperations, are extremely slow in CI
         # with the race detector enabled, so we use -short when -race is
         # enabled to reduce the number of slow tests, and then run without
