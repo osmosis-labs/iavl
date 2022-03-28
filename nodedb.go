@@ -2,7 +2,6 @@ package iavl
 
 import (
 	"bytes"
-	"container/list"
 	"crypto/sha256"
 	"fmt"
 	"math"
@@ -74,13 +73,9 @@ type nodeDB struct {
 	opts           Options          // Options to customize for pruning/writing
 	versionReaders map[int64]uint32 // Number of active version readers
 	storageVersion string           // Storage version
-
 	latestVersion  int64
-	nodeCache      map[string]*list.Element // Node cache.
-	nodeCacheSize  int                      // Node cache size limit in elements.
-	nodeCacheQueue *list.List               // LRU queue of cache elements. Used for deletion.
-
-	fastNodeCache cache.Cache
+	nodeCache      cache.Cache
+	fastNodeCache  cache.Cache
 }
 
 func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
@@ -96,16 +91,14 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 	}
 
 	return &nodeDB{
-		db:                 db,
-		batch:              db.NewBatch(),
-		opts:               *opts,
-		latestVersion:      0, // initially invalid
-		nodeCache:          make(map[string]*list.Element),
-		nodeCacheSize:      cacheSize,
-		nodeCacheQueue:     list.New(),
-		fastNodeCache:      cache.New(100000),
-		versionReaders:     make(map[int64]uint32, 8),
-		storageVersion:     string(storeVersion),
+		db:             db,
+		batch:          db.NewBatch(),
+		opts:           *opts,
+		latestVersion:  0, // initially invalid
+		nodeCache:      cache.New(cacheSize),
+		fastNodeCache:  cache.New(100000),
+		versionReaders: make(map[int64]uint32, 8),
+		storageVersion: string(storeVersion),
 	}
 }
 
@@ -120,10 +113,8 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	}
 
 	// Check the cache.
-	if elem, ok := ndb.nodeCache[string(hash)]; ok {
-		// Already exists. Move to back of nodeCacheQueue.
-		ndb.nodeCacheQueue.MoveToBack(elem)
-		return elem.Value.(*Node)
+	if cachedNode := ndb.nodeCache.Get(hash); cachedNode != nil {
+		return cachedNode.(*Node)
 	}
 
 	// Doesn't exist, load.
@@ -142,7 +133,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 
 	node.hash = hash
 	node.persisted = true
-	ndb.cacheNode(node)
+	ndb.nodeCache.Add(node)
 
 	return node
 }
@@ -206,7 +197,7 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 	}
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
-	ndb.cacheNode(node)
+	ndb.nodeCache.Add(node)
 }
 
 // SaveNode saves a FastNode to disk and add to cache.
@@ -429,7 +420,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.uncacheNode(hash)
+			ndb.nodeCache.Remove(hash)
 		} else if toVersion >= version-1 {
 			if err := ndb.batch.Delete(key); err != nil {
 				return err
@@ -518,7 +509,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 				if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 					panic(err)
 				}
-				ndb.uncacheNode(hash)
+				ndb.nodeCache.Remove(hash)
 			} else {
 				ndb.saveOrphan(hash, from, predecessor)
 			}
@@ -577,7 +568,7 @@ func (ndb *nodeDB) deleteNodesFrom(version int64, hash []byte) error {
 			return err
 		}
 
-		ndb.uncacheNode(hash)
+		ndb.nodeCache.Remove(hash)
 	}
 
 	return nil
@@ -638,7 +629,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 			if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.uncacheNode(hash)
+			ndb.nodeCache.Remove(hash)
 		} else {
 			debug("MOVE predecessor:%v fromVersion:%v toVersion:%v %X\n", predecessor, fromVersion, toVersion, hash)
 			ndb.saveOrphan(hash, fromVersion, predecessor)
@@ -795,26 +786,6 @@ func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Itera
 	}
 
 	return ndb.db.ReverseIterator(startFormatted, endFormatted)
-}
-
-func (ndb *nodeDB) uncacheNode(hash []byte) {
-	if elem, ok := ndb.nodeCache[string(hash)]; ok {
-		ndb.nodeCacheQueue.Remove(elem)
-		delete(ndb.nodeCache, string(hash))
-	}
-}
-
-// Add a node to the cache and pop the least recently used node if we've
-// reached the cache size limit.
-func (ndb *nodeDB) cacheNode(node *Node) {
-	elem := ndb.nodeCacheQueue.PushBack(node)
-	ndb.nodeCache[string(node.hash)] = elem
-
-	if ndb.nodeCacheQueue.Len() > ndb.nodeCacheSize {
-		oldest := ndb.nodeCacheQueue.Front()
-		hash := ndb.nodeCacheQueue.Remove(oldest).(*Node).hash
-		delete(ndb.nodeCache, string(hash))
-	}
 }
 
 // Write to disk.
