@@ -4,10 +4,12 @@ import (
 	"container/list"
 )
 
+// Node represents a node eligible for caching.
 type Node interface {
 	GetKey() []byte
 }
 
+// Cache is an in-memory structure to persist nodes for quick access.
 type Cache interface {
 	// Adds node to cache. If full and had to remove the oldest element,
 	// returns the oldest, otherwise nil.
@@ -27,11 +29,11 @@ type Cache interface {
 	Len() int
 }
 
-// lruCache is an LRU cache implementeation.
+// lruCache is an LRU cache implementation.
 type lruCache struct {
 	dict       map[string]*list.Element // FastNode cache.
 	cacheLimit int                      // FastNode cache size limit in elements.
-	ll      *list.List               // LRU queue of cache elements. Used for deletion.
+	ll         *list.List               // LRU queue of cache elements. Used for deletion.
 }
 
 var _ Cache = (*lruCache)(nil)
@@ -40,7 +42,7 @@ func New(cacheLimit int) Cache {
 	return &lruCache{
 		dict:       make(map[string]*list.Element),
 		cacheLimit: cacheLimit,
-		ll:      list.New(),
+		ll:         list.New(),
 	}
 }
 
