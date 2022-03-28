@@ -46,21 +46,21 @@ func New(cacheLimit int) Cache {
 	}
 }
 
-func (nc *lruCache) Add(node Node) Node {
-	if e, exists := nc.dict[string(node.GetKey())]; exists {
-		nc.ll.MoveToFront(e)
+func (c *lruCache) Add(node Node) Node {
+	if e, exists := c.dict[string(node.GetKey())]; exists {
+		c.ll.MoveToFront(e)
 		old := e.Value
 		e.Value = node
 		return old.(Node)
 	}
 
-	elem := nc.ll.PushFront(node)
-	nc.dict[string(node.GetKey())] = elem
+	elem := c.ll.PushFront(node)
+	c.dict[string(node.GetKey())] = elem
 
-	if nc.ll.Len() > nc.cacheLimit {
-		oldest := nc.ll.Back()
+	if c.ll.Len() > c.cacheLimit {
+		oldest := c.ll.Back()
 
-		return nc.remove(oldest)
+		return c.remove(oldest)
 	}
 	return nil
 }
