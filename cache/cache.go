@@ -41,6 +41,13 @@ func New(cacheLimit int) Cache {
 }
 
 func (nc *abstractCache) Add(node Node) Node {
+	if e, ok := nc.dict[string(node.GetKey())]; ok {
+		nc.queue.MoveToFront(e)
+		old := e.Value
+		e.Value = node
+		return old.(Node)
+	}
+
 	elem := nc.queue.PushBack(node)
 	nc.dict[string(node.GetKey())] = elem
 

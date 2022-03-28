@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/iavl/cache"
-	// "github.com/cosmos/iavl/common"
+	"github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,10 +23,21 @@ type testNode struct {
 	key   []byte
 }
 
+type cacheOp struct {
+	testNodexIdx             int
+	expectedResult   expectedResult
+}
+
+type testcase struct {
+	setup func(cache.Cache)
+	cacheLimit          int
+	cacheOps            []cacheOp
+	expectedNodeIndexes []int // contents of the cache once test case completes represent by indexes in testNodes
+}
+
 func (tn *testNode) GetKey() []byte {
 	return tn.key
 }
-
 
 const (
 	testKey = "key"
@@ -49,23 +60,27 @@ var (
 )
 
 func Test_Cache_Add(t *testing.T) {
-	
-	type cacheOp struct {
-		testNodexIdx             int
-		expectedResult   expectedResult
-	}
-
-	testcases := map[string]struct {
-		cacheLimit          int
-		cacheOps            []cacheOp
-		expectedNodeIndexes []int // contents of the cache once test case completes represent by indexes in testNodes
-	}{
+	testcases := map[string]testcase{
 		"add 1 node with 1 limit - added": {
 			cacheLimit: 1,
 			cacheOps: []cacheOp{
 				{
 					testNodexIdx: 0,
 					expectedResult: noneRemoved,
+				},
+			},
+			expectedNodeIndexes: []int{0},
+		},
+		"add 1 node twice, cache limit 2 - only one added": {
+			cacheLimit: 2,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 0,
+					expectedResult: noneRemoved,
+				},
+				{
+					testNodexIdx: 0,
+					expectedResult: 0,
 				},
 			},
 			expectedNodeIndexes: []int{0},
@@ -159,10 +174,120 @@ func Test_Cache_Add(t *testing.T) {
 				require.Equal(t, expectedCurSize, cache.Len())
 			}
 
-			require.Equal(t, len(tc.expectedNodeIndexes), cache.Len())
-			for _, idx := range tc.expectedNodeIndexes {
-				require.True(t, cache.Has(testNodes[idx].GetKey()))
+			validateCacheContentsAfterTest(t, tc, cache)
+		})
+	}
+}
+
+func Test_Cache_Remove(t *testing.T) {
+	testcases := map[string]testcase{
+		"remove non-existent key, cache limit 0 - nil returned": {
+			cacheLimit: 0,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 0,
+					expectedResult: noneRemoved,
+				},
+			},
+		},
+		"remove non-existent key, cache limit 1 - nil returned": {
+			setup: func(c cache.Cache) {
+				require.Nil(t, c.Add(testNodes[1]))
+				require.Equal(t, 1, c.Len())
+			},
+			cacheLimit: 1,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 0,
+					expectedResult: noneRemoved,
+				},
+			},
+			expectedNodeIndexes: []int{1},
+		},
+		"remove existent key, cache limit 1 - removed": {
+			setup: func(c cache.Cache) {
+				require.Nil(t, c.Add(testNodes[0]))
+				require.Equal(t, 1, c.Len())
+			},
+			cacheLimit: 1,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 0,
+					expectedResult: 0,
+				},
+			},
+		},
+		"remove twice, cache limit 1 - removed first time, then nil": {
+			setup: func(c cache.Cache) {
+				require.Nil(t, c.Add(testNodes[0]))
+				require.Equal(t, 1, c.Len())
+			},
+			cacheLimit: 1,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 0,
+					expectedResult: 0,
+				},
+				{
+					testNodexIdx: 0,
+					expectedResult: noneRemoved,
+				},
+			},
+		},
+		"remove all, cache limit 3": {
+			setup: func(c cache.Cache) {
+				require.Nil(t, c.Add(testNodes[0]))
+				require.Nil(t, c.Add(testNodes[1]))
+				require.Nil(t, c.Add(testNodes[2]))
+				require.Equal(t, 3, c.Len())
+			},
+			cacheLimit: 3,
+			cacheOps: []cacheOp{
+				{
+					testNodexIdx: 2,
+					expectedResult: 2,
+				},
+				{
+					testNodexIdx: 0,
+					expectedResult: 0,
+				},
+				{
+					testNodexIdx: 1,
+					expectedResult: 1,
+				},
+			},
+		},
+	}
+
+	for name, tc := range testcases {
+		t.Run(name, func(t *testing.T) {
+			cache := cache.New(tc.cacheLimit)
+
+			if tc.setup != nil {
+				tc.setup(cache)
 			}
+
+			expectedCurSize := cache.Len()
+
+			for _, op := range tc.cacheOps {
+
+				actualResult := cache.Remove(testNodes[op.testNodexIdx].GetKey())
+
+				expectedResult := op.expectedResult
+
+				if expectedResult == noneRemoved {
+					require.Nil(t, actualResult)
+				} else {
+					expectedCurSize--
+					require.NotNil(t, actualResult)
+					
+					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
+					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
+				}
+				require.Equal(t, expectedCurSize, cache.Len())
+			}
+
+			validateCacheContentsAfterTest(t, tc, cache)
 		})
 	}
 }
@@ -191,7 +316,7 @@ func BenchmarkAdd(b *testing.B) {
 		cache := cache.New(tc.cacheLimit)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				cache.Add(&testNode{
+				_ = cache.Add(&testNode{
 					key: randBytes(tc.keySize),
 				})
 			}
@@ -199,35 +324,38 @@ func BenchmarkAdd(b *testing.B) {
 	}
 }
 
-// func BenchmarkRemove(b *testing.B) {
-// 	b.ReportAllocs()
+func BenchmarkRemove(b *testing.B) {
+	b.ReportAllocs()
 
-// 	b.StopTimer()
-// 	cache := cache.New(10000)
-// 	existentKeyMirror := [][]byte{}
-// 	// Populate cache
-// 	for i := 0; i < 10000; i++ {
-// 		key := randBytes(10)
+	b.StopTimer()
+	cache := cache.New(1000)
+	existentKeyMirror := [][]byte{}
+	// Populate cache
+	for i := 0; i < 50; i++ {
+		key := randBytes(1000)
 
-// 		existentKeyMirror = append(existentKeyMirror, key)
+		existentKeyMirror = append(existentKeyMirror, key)
 
-// 		cache.Add(&testNode{
-// 			key: key,
-// 		})
-// 	}
+		cache.Add(&testNode{
+			key: key,
+		})
+	}
 
-// 	// r := common.NewRand()
+	r := common.NewRand()
 
-// 	// var key []byte
+	for i := 0; i < b.N; i++ {
+		key := existentKeyMirror[r.Intn(len(existentKeyMirror))]
+		b.ResetTimer()
+		_ = cache.Remove(key)
+	}
+}
 
-// 	for i := 0; i < b.N; i++ {
-// 		// b.StopTimer()
-// 		// key = existentKeyMirror[r.Intn(len(existentKeyMirror))]
-// 		// b.StartTimer()
-
-// 		_ = cache.Remove(randBytes(10))
-// 	}
-// }
+func validateCacheContentsAfterTest(t *testing.T, tc testcase, cache cache.Cache) {
+	require.Equal(t, len(tc.expectedNodeIndexes), cache.Len())
+	for _, idx := range tc.expectedNodeIndexes {
+		require.True(t, cache.Has(testNodes[idx].GetKey()))
+	}
+}
 
 func randBytes(length int) []byte {
 	key := make([]byte, length)
