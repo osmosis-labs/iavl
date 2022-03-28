@@ -13,6 +13,9 @@ type Cache interface {
 	// returns the oldest, otherwise nil.
 	Add(node Node) Node
 
+	// Returns Node for the key, if exists. nil otherwise.
+	Get(key []byte) Node
+
 	// Has returns true if node with key exists in cache, false otherwise.
 	Has(key []byte) bool
 
@@ -24,59 +27,68 @@ type Cache interface {
 	Len() int
 }
 
-type abstractCache struct {
+// lruCache is an LRU cache implementeation.
+type lruCache struct {
 	dict       map[string]*list.Element // FastNode cache.
 	cacheLimit int                      // FastNode cache size limit in elements.
-	queue      *list.List               // LRU queue of cache elements. Used for deletion.
+	ll      *list.List               // LRU queue of cache elements. Used for deletion.
 }
 
-var _ Cache = (*abstractCache)(nil)
+var _ Cache = (*lruCache)(nil)
 
 func New(cacheLimit int) Cache {
-	return &abstractCache{
+	return &lruCache{
 		dict:       make(map[string]*list.Element),
 		cacheLimit: cacheLimit,
-		queue:      list.New(),
+		ll:      list.New(),
 	}
 }
 
-func (nc *abstractCache) Add(node Node) Node {
-	if e, ok := nc.dict[string(node.GetKey())]; ok {
-		nc.queue.MoveToFront(e)
+func (nc *lruCache) Add(node Node) Node {
+	if e, exists := nc.dict[string(node.GetKey())]; exists {
+		nc.ll.MoveToFront(e)
 		old := e.Value
 		e.Value = node
 		return old.(Node)
 	}
 
-	elem := nc.queue.PushBack(node)
+	elem := nc.ll.PushFront(node)
 	nc.dict[string(node.GetKey())] = elem
 
-	if nc.queue.Len() > nc.cacheLimit {
-		oldest := nc.queue.Front()
+	if nc.ll.Len() > nc.cacheLimit {
+		oldest := nc.ll.Back()
 
 		return nc.remove(oldest)
 	}
 	return nil
 }
 
-func (c *abstractCache) Has(key []byte) bool {
-	_, ok := c.dict[string(key)]
-	return ok
+func (nc *lruCache) Get(key []byte) Node {
+	if ele, hit := nc.dict[string(key)]; hit {
+		nc.ll.MoveToFront(ele)
+		return ele.Value.(Node)
+	}
+	return nil
 }
 
-func (nc *abstractCache) Len() int {
-	return nc.queue.Len()
+func (c *lruCache) Has(key []byte) bool {
+	_, exists := c.dict[string(key)]
+	return exists
 }
 
-func (c *abstractCache) Remove(key []byte) Node {
-	if elem, ok := c.dict[string(key)]; ok {
+func (nc *lruCache) Len() int {
+	return nc.ll.Len()
+}
+
+func (c *lruCache) Remove(key []byte) Node {
+	if elem, exists := c.dict[string(key)]; exists {
 		return c.remove(elem)
 	}
 	return nil
 }
 
-func (c *abstractCache) remove(e *list.Element) Node {
-	removed := c.queue.Remove(e).(Node)
+func (c *lruCache) remove(e *list.Element) Node {
+	removed := c.ll.Remove(e).(Node)
 	delete(c.dict, string(removed.GetKey()))
 	return removed
 }

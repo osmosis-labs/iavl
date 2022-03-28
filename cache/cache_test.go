@@ -353,7 +353,9 @@ func BenchmarkRemove(b *testing.B) {
 func validateCacheContentsAfterTest(t *testing.T, tc testcase, cache cache.Cache) {
 	require.Equal(t, len(tc.expectedNodeIndexes), cache.Len())
 	for _, idx := range tc.expectedNodeIndexes {
-		require.True(t, cache.Has(testNodes[idx].GetKey()))
+		expectedNode := testNodes[idx]
+		require.True(t, cache.Has(expectedNode.GetKey()))
+		require.Equal(t, expectedNode, cache.Get(expectedNode.GetKey()))
 	}
 }
 

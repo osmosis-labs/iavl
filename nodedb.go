@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cosmos/iavl/cache"
 	"github.com/pkg/errors"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -79,9 +80,7 @@ type nodeDB struct {
 	nodeCacheSize  int                      // Node cache size limit in elements.
 	nodeCacheQueue *list.List               // LRU queue of cache elements. Used for deletion.
 
-	fastNodeCache      map[string]*list.Element // FastNode cache.
-	fastNodeCacheSize  int                      // FastNode cache size limit in elements.
-	fastNodeCacheQueue *list.List               // LRU queue of cache elements. Used for deletion.
+	fastNodeCache cache.Cache
 }
 
 func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
@@ -104,9 +103,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		nodeCache:          make(map[string]*list.Element),
 		nodeCacheSize:      cacheSize,
 		nodeCacheQueue:     list.New(),
-		fastNodeCache:      make(map[string]*list.Element),
-		fastNodeCacheSize:  100000,
-		fastNodeCacheQueue: list.New(),
+		fastNodeCache:      cache.New(100000),
 		versionReaders:     make(map[int64]uint32, 8),
 		storageVersion:     string(storeVersion),
 	}
@@ -162,11 +159,8 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, fmt.Errorf("nodeDB.GetFastNode() requires key, len(key) equals 0")
 	}
 
-	// Check the cache.
-	if elem, ok := ndb.fastNodeCache[string(key)]; ok {
-		// Already exists. Move to back of fastNodeCacheQueue.
-		ndb.fastNodeCacheQueue.MoveToBack(elem)
-		return elem.Value.(*FastNode), nil
+	if cachedFastNode := ndb.fastNodeCache.Get(key); cachedFastNode != nil {
+		return cachedFastNode.(*FastNode), nil
 	}
 
 	// Doesn't exist, load.
@@ -183,7 +177,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
 
-	ndb.cacheFastNode(fastNode)
+	ndb.fastNodeCache.Add(fastNode)
 	return fastNode, nil
 }
 
@@ -298,7 +292,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
 	if shouldAddToCache {
-		ndb.cacheFastNode(node)
+		ndb.fastNodeCache.Add(node)
 	}
 	return nil
 }
@@ -473,7 +467,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}
-			ndb.uncacheFastNode(key)
+			ndb.fastNodeCache.Remove(key)
 		}
 		return nil
 	})
@@ -555,7 +549,7 @@ func (ndb *nodeDB) DeleteFastNode(key []byte) error {
 	if err := ndb.batch.Delete(ndb.fastNodeKey(key)); err != nil {
 		return err
 	}
-	ndb.uncacheFastNode(key)
+	ndb.fastNodeCache.Remove(key)
 	return nil
 }
 
@@ -820,26 +814,6 @@ func (ndb *nodeDB) cacheNode(node *Node) {
 		oldest := ndb.nodeCacheQueue.Front()
 		hash := ndb.nodeCacheQueue.Remove(oldest).(*Node).hash
 		delete(ndb.nodeCache, string(hash))
-	}
-}
-
-func (ndb *nodeDB) uncacheFastNode(key []byte) {
-	if elem, ok := ndb.fastNodeCache[string(key)]; ok {
-		ndb.fastNodeCacheQueue.Remove(elem)
-		delete(ndb.fastNodeCache, string(key))
-	}
-}
-
-// Add a node to the cache and pop the least recently used node if we've
-// reached the cache size limit.
-func (ndb *nodeDB) cacheFastNode(node *FastNode) {
-	elem := ndb.fastNodeCacheQueue.PushBack(node)
-	ndb.fastNodeCache[string(node.key)] = elem
-
-	if ndb.fastNodeCacheQueue.Len() > ndb.fastNodeCacheSize {
-		oldest := ndb.fastNodeCacheQueue.Front()
-		key := ndb.fastNodeCacheQueue.Remove(oldest).(*FastNode).key
-		delete(ndb.fastNodeCache, string(key))
 	}
 }
 
