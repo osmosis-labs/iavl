@@ -28,7 +28,7 @@ func BenchmarkAdd(b *testing.B) {
 	}
 
 	for name, tc := range testcases {
-		cache := cache.New(tc.cacheLimit)
+		cache := cache.NewWithNodeLimit(tc.cacheLimit)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_ = cache.Add(&testNode{
@@ -43,7 +43,7 @@ func BenchmarkRemove(b *testing.B) {
 	b.ReportAllocs()
 
 	b.StopTimer()
-	cache := cache.New(1000)
+	cache := cache.NewWithNodeLimit(1000)
 	existentKeyMirror := [][]byte{}
 	// Populate cache
 	for i := 0; i < 50; i++ {

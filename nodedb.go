@@ -96,8 +96,8 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		batch:          db.NewBatch(),
 		opts:           *opts,
 		latestVersion:  0, // initially invalid
-		nodeCache:      cache.New(cacheSize),
-		fastNodeCache:  cache.New(fastNodeCacheLimit),
+		nodeCache:      cache.NewWithNodeLimit(cacheSize),
+		fastNodeCache:  cache.NewWithNodeLimit(fastNodeCacheLimit),
 		versionReaders: make(map[int64]uint32, 8),
 		storageVersion: string(storeVersion),
 	}

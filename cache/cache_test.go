@@ -152,7 +152,7 @@ func Test_Cache_Add(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			cache := cache.New(tc.cacheLimit)
+			cache := cache.NewWithNodeLimit(tc.cacheLimit)
 
 			expectedCurSize := 0
 
@@ -261,7 +261,7 @@ func Test_Cache_Remove(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			cache := cache.New(tc.cacheLimit)
+			cache := cache.NewWithNodeLimit(tc.cacheLimit)
 
 			if tc.setup != nil {
 				tc.setup(cache)
