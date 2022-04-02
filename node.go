@@ -112,6 +112,10 @@ func (n *Node) GetKey() []byte {
 	return n.hash
 }
 
+func (n *Node) GetFullSize() int {
+	panic("not implemented")
+}
+
 // String returns a string representation of the node.
 func (node *Node) String() string {
 	hashstr := "<no hash>"

@@ -134,7 +134,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 
 	node.hash = hash
 	node.persisted = true
-	ndb.nodeCache.Add(node)
+	cache.Add(ndb.nodeCache, node)
 
 	return node
 }
@@ -169,7 +169,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
 
-	ndb.fastNodeCache.Add(fastNode)
+	cache.Add(ndb.fastNodeCache, fastNode)
 	return fastNode, nil
 }
 
@@ -198,7 +198,7 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 	}
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
-	ndb.nodeCache.Add(node)
+	cache.Add(ndb.nodeCache, node)
 }
 
 // SaveNode saves a FastNode to disk and add to cache.
@@ -284,7 +284,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
 	if shouldAddToCache {
-		ndb.fastNodeCache.Add(node)
+		cache.Add(ndb.fastNodeCache, node)
 	}
 	return nil
 }

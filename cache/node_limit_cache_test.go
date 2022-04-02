@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,6 +38,10 @@ type testcase struct {
 
 func (tn *testNode) GetKey() []byte {
 	return tn.key
+}
+
+func (tn *testNode) GetFullSize() int {
+	return len(tn.key) + common.GetSliceSizeBytes()
 }
 
 const (
@@ -152,29 +157,29 @@ func Test_Cache_Add(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			cache := cache.NewWithNodeLimit(tc.cacheLimit)
+			c := cache.NewWithNodeLimit(tc.cacheLimit)
 
 			expectedCurSize := 0
 
 			for _, op := range tc.cacheOps {
 
-				actualResult := cache.Add(testNodes[op.testNodexIdx])
+				actualResult := cache.MockAdd(c, testNodes[op.testNodexIdx])
 
 				expectedResult := op.expectedResult
 
 				if expectedResult == noneRemoved {
-					require.Nil(t, actualResult)
+					require.Empty(t, actualResult)
 					expectedCurSize++
 				} else {
 					require.NotNil(t, actualResult)
 
 					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
+					require.Contains(t, actualResult, testNodes[int(op.expectedResult)])
 				}
-				require.Equal(t, expectedCurSize, cache.Len())
+				require.Equal(t, expectedCurSize, c.Len())
 			}
 
-			validateCacheContentsAfterTest(t, tc, cache)
+			validateCacheContentsAfterTest(t, tc, c)
 		})
 	}
 }
@@ -192,7 +197,7 @@ func Test_Cache_Remove(t *testing.T) {
 		},
 		"remove non-existent key, cache limit 1 - nil returned": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[1]))
+				require.Empty(t, cache.MockAdd(c, testNodes[1]))
 				require.Equal(t, 1, c.Len())
 			},
 			cacheLimit: 1,
@@ -206,7 +211,7 @@ func Test_Cache_Remove(t *testing.T) {
 		},
 		"remove existent key, cache limit 1 - removed": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
+				require.Empty(t, cache.MockAdd(c, testNodes[0]))
 				require.Equal(t, 1, c.Len())
 			},
 			cacheLimit: 1,
@@ -219,7 +224,7 @@ func Test_Cache_Remove(t *testing.T) {
 		},
 		"remove twice, cache limit 1 - removed first time, then nil": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
+				require.Empty(t, cache.MockAdd(c, testNodes[0]))
 				require.Equal(t, 1, c.Len())
 			},
 			cacheLimit: 1,
@@ -236,9 +241,9 @@ func Test_Cache_Remove(t *testing.T) {
 		},
 		"remove all, cache limit 3": {
 			setup: func(c cache.Cache) {
-				require.Nil(t, c.Add(testNodes[0]))
-				require.Nil(t, c.Add(testNodes[1]))
-				require.Nil(t, c.Add(testNodes[2]))
+				require.Empty(t, cache.MockAdd(c, testNodes[0]))
+				require.Empty(t, cache.MockAdd(c, testNodes[1]))
+				require.Empty(t, cache.MockAdd(c, testNodes[2]))
 				require.Equal(t, 3, c.Len())
 			},
 			cacheLimit: 3,

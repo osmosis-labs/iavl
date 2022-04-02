@@ -2,14 +2,15 @@ package cache
 
 // Node represents a node eligible for caching.
 type Node interface {
+	// TODO: bytes
 	GetKey() []byte
+	// TODO: bytes
+	GetFullSize() int
 }
 
 // Cache is an in-memory structure to persist nodes for quick access.
 type Cache interface {
-	// Adds node to cache. If full and had to remove the oldest element,
-	// returns the oldest, otherwise nil.
-	Add(node Node) Node
+
 
 	// Returns Node for the key, if exists. nil otherwise.
 	Get(key []byte) Node
@@ -23,4 +24,35 @@ type Cache interface {
 
 	// Len returns the cache length.
 	Len() int
+
+	// add dds node to cache. If full and had to remove the oldest element,
+	// returns the oldest, otherwise nil.
+	add(node Node) Node
+
+	isOverLimit() bool
+
+	removeOldest() Node
+}
+
+func Add(c Cache, node Node) {
+	if old := c.add(node); old != nil {
+		return
+	}
+
+	for c.isOverLimit() {
+		c.removeOldest()
+	}
+}
+
+// Used for testing, returns removed Nodes
+func add(c Cache, node Node) []Node  {
+	if old := c.add(node); old != nil {
+		return []Node{old}
+	}
+
+	removed := make([]Node, 0)
+	for c.isOverLimit() {
+		removed = append(removed, c.removeOldest())
+	}
+	return removed
 }
