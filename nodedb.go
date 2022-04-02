@@ -421,7 +421,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.nodeCache.Remove(hash)
+			cache.Remove(ndb.nodeCache, hash)
 		} else if toVersion >= version-1 {
 			if err := ndb.batch.Delete(key); err != nil {
 				return err
@@ -459,7 +459,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}
-			ndb.fastNodeCache.Remove(key)
+			cache.Remove(ndb.fastNodeCache, key)
 		}
 		return nil
 	})
@@ -510,7 +510,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 				if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 					panic(err)
 				}
-				ndb.nodeCache.Remove(hash)
+				cache.Remove(ndb.nodeCache, hash)
 			} else {
 				ndb.saveOrphan(hash, from, predecessor)
 			}
@@ -541,7 +541,7 @@ func (ndb *nodeDB) DeleteFastNode(key []byte) error {
 	if err := ndb.batch.Delete(ndb.fastNodeKey(key)); err != nil {
 		return err
 	}
-	ndb.fastNodeCache.Remove(key)
+	cache.Remove(ndb.fastNodeCache, key)
 	return nil
 }
 
@@ -569,7 +569,7 @@ func (ndb *nodeDB) deleteNodesFrom(version int64, hash []byte) error {
 			return err
 		}
 
-		ndb.nodeCache.Remove(hash)
+		cache.Remove(ndb.nodeCache, hash)
 	}
 
 	return nil
@@ -630,7 +630,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 			if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.nodeCache.Remove(hash)
+			cache.Remove(ndb.nodeCache, hash)
 		} else {
 			debug("MOVE predecessor:%v fromVersion:%v toVersion:%v %X\n", predecessor, fromVersion, toVersion, hash)
 			ndb.saveOrphan(hash, fromVersion, predecessor)

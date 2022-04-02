@@ -61,6 +61,6 @@ func BenchmarkRemove(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		key := existentKeyMirror[r.Intn(len(existentKeyMirror))]
 		b.ResetTimer()
-		_ = c.Remove(key)
+		_ = cache.Remove(c, key)
 	}
 }

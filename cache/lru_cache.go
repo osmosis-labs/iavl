@@ -1,6 +1,8 @@
 package cache
 
-import "container/list"
+import (
+	"container/list"
+)
 
 // lruCache is an abstract LRU cache implementation with no limits.
 type lruCache struct {
@@ -23,11 +25,10 @@ func (c *lruCache) add(node Node) Node {
 	return nil
 }
 
-func (nc *lruCache) Get(key []byte) Node {
-	if ele, hit := nc.dict[string(key)]; hit {
-		nc.ll.MoveToFront(ele)
-		return ele.Value.(Node)
-	}
+func (c *lruCache) Get(key []byte) Node {
+	if elem := c.get(key); elem != nil {
+		return elem.Value.(Node)
+	} 
 	return nil
 }
 
@@ -40,9 +41,11 @@ func (nc *lruCache) Len() int {
 	return nc.ll.Len()
 }
 
-func (c *lruCache) Remove(key []byte) Node {
-	if elem, exists := c.dict[string(key)]; exists {
-		return c.remove(elem)
+func (c *lruCache) get(key []byte) *list.Element {
+	elem , exists := c.dict[string(key)]
+	if exists {
+		c.ll.MoveToFront(elem)
+		return elem
 	}
 	return nil
 }
@@ -53,8 +56,8 @@ func (c *lruCache) remove(e *list.Element) Node {
 	return removed
 }
 
-func (c *lruCache) removeOldest() Node {
-	return c.remove(c.ll.Back())
+func (c *lruCache) getOldest() *list.Element {
+	return c.ll.Back()
 }
 
 func (c *lruCache) isOverLimit() bool {

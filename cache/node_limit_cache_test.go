@@ -266,17 +266,17 @@ func Test_Cache_Remove(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			cache := cache.NewWithNodeLimit(tc.cacheLimit)
+			nodeLimitCache := cache.NewWithNodeLimit(tc.cacheLimit)
 
 			if tc.setup != nil {
-				tc.setup(cache)
+				tc.setup(nodeLimitCache)
 			}
 
-			expectedCurSize := cache.Len()
+			expectedCurSize := nodeLimitCache.Len()
 
 			for _, op := range tc.cacheOps {
 
-				actualResult := cache.Remove(testNodes[op.testNodexIdx].GetKey())
+				actualResult := cache.Remove(nodeLimitCache, testNodes[op.testNodexIdx].GetKey())
 
 				expectedResult := op.expectedResult
 
@@ -289,10 +289,10 @@ func Test_Cache_Remove(t *testing.T) {
 					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
 					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
 				}
-				require.Equal(t, expectedCurSize, cache.Len())
+				require.Equal(t, expectedCurSize, nodeLimitCache.Len())
 			}
 
-			validateCacheContentsAfterTest(t, tc, cache)
+			validateCacheContentsAfterTest(t, tc, nodeLimitCache)
 		})
 	}
 }
