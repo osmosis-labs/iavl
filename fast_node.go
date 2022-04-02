@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/common"
 	"github.com/pkg/errors"
 )
 
@@ -51,6 +52,12 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 
 func (fn *FastNode) GetKey() []byte {
 	return fn.key
+}
+
+func (fn *FastNode) GetFullSize() int {
+	return len(fn.key) + common.GetSliceSizeBytes() +
+	common.Uint64Size +
+	len(fn.value) + common.GetSliceSizeBytes()
 }
 
 func (node *FastNode) encodedSize() int {
