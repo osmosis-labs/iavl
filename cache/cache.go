@@ -11,10 +11,23 @@ type Node interface {
 	GetFullSize() int
 }
 
+// Type represents cache type. All types
+// are defined below.
+type Type int
+
+const (
+	LRU             Type = 0
+	LRU_node_limit  Type = 1
+	LRU_bytes_limit Type = 2
+)
+
 // Cache is an in-memory structure to persist nodes for quick access.
 type Cache interface {
 	// Get returns Node for the key, if exists. nil otherwise.
 	Get(key []byte) Node
+
+	// GetType returns cache's type.
+	GetType() Type
 
 	// Has returns true if node with key exists in cache, false otherwise.
 	Has(key []byte) bool

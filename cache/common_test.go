@@ -69,6 +69,43 @@ var (
 	}
 )
 
+func testAdd(t *testing.T, testCache cache.Cache, tc testcase) {
+	expectedCurSize := 0
+
+	for opIdx, op := range tc.cacheOps {
+
+		actualResult := cache.MockAdd(testCache, testNodes[op.testNodexIdx])
+
+		expectedResult := op.expectedResult
+
+		switch expectedResult {
+		case noneRemoved:
+			expectedCurSize++
+			fallthrough
+		case updated:
+			require.Empty(t, actualResult)
+		case allButLastRemoved:
+			require.NotNil(t, actualResult)
+			expectedCurSize = 2
+			require.True(t, testCache.Has(testNodes[op.testNodexIdx].GetKey()))
+			require.Contains(t, actualResult, testNodes[tc.cacheOps[opIdx-2].testNodexIdx])
+		default:
+			require.NotNil(t, actualResult)
+			// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
+			require.Contains(t, actualResult, testNodes[int(op.expectedResult)])
+		}
+		require.Equal(t, expectedCurSize, testCache.Len())
+
+		if testCache.GetType() == cache.LRU_bytes_limit {
+			currentBytes, err := cache.GetCacheCurrentBytes(testCache)
+			require.NoError(t, err)
+			require.Equal(t, op.expectedBytesLimit, currentBytes)
+		}
+	}
+
+	validateCacheContentsAfterTest(t, tc, testCache)
+}
+
 func testRemove(t *testing.T, testCache cache.Cache, tc testcase) {
 	if tc.setup != nil {
 		tc.setup(testCache)

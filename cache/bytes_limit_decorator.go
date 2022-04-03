@@ -25,6 +25,10 @@ func NewWithBytesLimit(bytesLimit int) Cache {
 	}
 }
 
+func (c *lruCacheWithBytesLimit) GetType() Type {
+	return LRU_bytes_limit
+}
+
 func (c *lruCacheWithBytesLimit) isOverLimit() bool {
 	return c.curBytesEstimate > c.bytesLimit
 }

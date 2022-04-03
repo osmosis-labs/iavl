@@ -30,6 +30,10 @@ func (c *lruCache) Get(key []byte) Node {
 	return nil
 }
 
+func (c *lruCache) GetType() Type {
+	return LRU
+}
+
 func (c *lruCache) Has(key []byte) bool {
 	_, exists := c.dict[string(key)]
 	return exists

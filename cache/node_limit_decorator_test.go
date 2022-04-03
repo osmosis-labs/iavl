@@ -100,32 +100,8 @@ func Test_NodeLimitCache_Add(t *testing.T) {
 
 	for name, tc := range testcases {
 		t.Run(name, func(t *testing.T) {
-			c := cache.NewWithNodeLimit(tc.cacheLimit)
-
-			expectedCurSize := 0
-
-			for _, op := range tc.cacheOps {
-
-				actualResult := cache.MockAdd(c, testNodes[op.testNodexIdx])
-
-				expectedResult := op.expectedResult
-
-				switch expectedResult {
-				case noneRemoved:
-					expectedCurSize++
-					fallthrough
-				case updated:
-					require.Empty(t, actualResult)
-				default:
-					require.NotNil(t, actualResult)
-
-					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Contains(t, actualResult, testNodes[int(op.expectedResult)])
-				}
-				require.Equal(t, expectedCurSize, c.Len())
-			}
-
-			validateCacheContentsAfterTest(t, tc, c)
+			nodeLimitCache := cache.NewWithNodeLimit(tc.cacheLimit)
+			testAdd(t, nodeLimitCache, tc)
 		})
 	}
 }

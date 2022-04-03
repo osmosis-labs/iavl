@@ -19,6 +19,10 @@ func NewWithNodeLimit(nodeLimit int) Cache {
 	}
 }
 
+func (c *lruCacheWithNodeLimit) GetType() Type {
+	return LRU_node_limit
+}
+
 func (c *lruCacheWithNodeLimit) isOverLimit() bool {
 	return c.lruCache.ll.Len() > c.nodeLimit
 }
