@@ -56,22 +56,21 @@ func Benchmark_BytesLimitCache_Add(b *testing.B) {
 	b.ReportAllocs()
 	testcases := map[string]benchTestcase{
 		"small - limit: 50MB, key size - 10b": {
-			cacheLimit: 50* 1024 * 1024,
+			cacheLimit: 50 * 1024 * 1024,
 			keySize:    10,
 		},
 		"med - limit: 100MB, key size 20b": {
-			cacheLimit: 100* 1024 * 1024,
+			cacheLimit: 100 * 1024 * 1024,
 			keySize:    20,
 		},
 		"large - limit 500MB: , key size 30b": {
-			cacheLimit: 500* 1024 * 1024,
+			cacheLimit: 500 * 1024 * 1024,
 			keySize:    30,
 		},
 	}
 
 	benchmarkAdd(b, testcases)
 }
-
 
 func Benchmark_BytesLimitCache_Remove(b *testing.B) {
 	c := cache.NewWithNodeLimit(50 * 1024 * 1024)
@@ -113,7 +112,7 @@ func bencmarkRemove(b *testing.B, c cache.Cache) {
 				break
 			}
 		}
-		
+
 		b.ResetTimer()
 		removed := cache.Remove(c, key)
 		removedKeys[string(key)] = struct{}{}
