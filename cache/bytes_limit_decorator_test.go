@@ -103,13 +103,13 @@ func Test_BytesLimit_Add(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			tc := getTestcaseFn()
 
-			c := cache.NewWithBytesLimit(tc.cacheLimit)
+			bytesLimitCache := cache.NewWithBytesLimit(tc.cacheLimit)
 
 			expectedCurSize := 0
 
 			for opIdx, op := range tc.cacheOps {
 
-				actualResult := cache.MockAdd(c, testNodes[op.testNodexIdx])
+				actualResult := cache.MockAdd(bytesLimitCache, testNodes[op.testNodexIdx])
 
 				expectedResult := op.expectedResult
 
@@ -120,21 +120,135 @@ func Test_BytesLimit_Add(t *testing.T) {
 				case allButLastRemoved:
 					require.NotNil(t, actualResult)
 					expectedCurSize = 2
-					require.True(t, c.Has(testNodes[op.testNodexIdx].GetKey()))
+					require.True(t, bytesLimitCache.Has(testNodes[op.testNodexIdx].GetKey()))
 					require.Contains(t, actualResult, testNodes[tc.cacheOps[opIdx-2].testNodexIdx])
 				default:
 					require.NotNil(t, actualResult)
 					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
 					require.Contains(t, actualResult, testNodes[int(op.expectedResult)])
 				}
-				require.Equal(t, expectedCurSize, c.Len())
+				require.Equal(t, expectedCurSize, bytesLimitCache.Len())
 
-				currentBytes, err := cache.GetCacheCurrentBytes(c)
+				currentBytes, err := cache.GetCacheCurrentBytes(bytesLimitCache)
 				require.NoError(t, err)
 				require.Equal(t, op.expectedBytesLimit, currentBytes)
 			}
 
-			validateCacheContentsAfterTest(t, tc, c)
+			validateCacheContentsAfterTest(t, tc, bytesLimitCache)
 		})
 	}
 }
+
+// TODO:
+// func Test_BytesLimitCache_Remove(t *testing.T) {
+// 	testcases := map[string]testcase{
+// 		"remove non-existent key, cache limit 0 - nil returned": {
+// 			cacheLimit: 0,
+// 			cacheOps: []cacheOp{
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: noneRemoved,
+// 				},
+// 			},
+// 		},
+// 		"remove non-existent key, cache limit 1 - nil returned": {
+// 			setup: func(c cache.Cache) {
+// 				require.Empty(t, cache.MockAdd(c, testNodes[1]))
+// 				require.Equal(t, 1, c.Len())
+// 			},
+// 			cacheLimit: 1,
+// 			cacheOps: []cacheOp{
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: noneRemoved,
+// 				},
+// 			},
+// 			expectedNodeIndexes: []int{1},
+// 		},
+// 		"remove existent key, cache limit 1 - removed": {
+// 			setup: func(c cache.Cache) {
+// 				require.Empty(t, cache.MockAdd(c, testNodes[0]))
+// 				require.Equal(t, 1, c.Len())
+// 			},
+// 			cacheLimit: 1,
+// 			cacheOps: []cacheOp{
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: 0,
+// 				},
+// 			},
+// 		},
+// 		"remove twice, cache limit 1 - removed first time, then nil": {
+// 			setup: func(c cache.Cache) {
+// 				require.Empty(t, cache.MockAdd(c, testNodes[0]))
+// 				require.Equal(t, 1, c.Len())
+// 			},
+// 			cacheLimit: 1,
+// 			cacheOps: []cacheOp{
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: 0,
+// 				},
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: noneRemoved,
+// 				},
+// 			},
+// 		},
+// 		"remove all, cache limit 3": {
+// 			setup: func(c cache.Cache) {
+// 				require.Empty(t, cache.MockAdd(c, testNodes[0]))
+// 				require.Empty(t, cache.MockAdd(c, testNodes[1]))
+// 				require.Empty(t, cache.MockAdd(c, testNodes[2]))
+// 				require.Equal(t, 3, c.Len())
+// 			},
+// 			cacheLimit: 3,
+// 			cacheOps: []cacheOp{
+// 				{
+// 					testNodexIdx:   2,
+// 					expectedResult: 2,
+// 				},
+// 				{
+// 					testNodexIdx:   0,
+// 					expectedResult: 0,
+// 				},
+// 				{
+// 					testNodexIdx:   1,
+// 					expectedResult: 1,
+// 				},
+// 			},
+// 		},
+// 	}
+
+// 	for name, tc := range testcases {
+// 		t.Run(name, func(t *testing.T) {
+// 			bytesLimitCache := cache.NewWithNodeLimit(tc.cacheLimit)
+
+// 			if tc.setup != nil {
+// 				tc.setup(bytesLimitCache)
+// 			}
+
+// 			expectedCurSize := bytesLimitCache.Len()
+
+// 			for _, op := range tc.cacheOps {
+
+// 				actualResult := cache.Remove(bytesLimitCache, testNodes[op.testNodexIdx].GetKey())
+
+// 				expectedResult := op.expectedResult
+
+// 				if expectedResult == noneRemoved {
+// 					require.Nil(t, actualResult)
+// 				} else {
+// 					expectedCurSize--
+// 					require.NotNil(t, actualResult)
+
+// 					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
+// 					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
+// 				}
+// 				require.Equal(t, expectedCurSize, bytesLimitCache.Len())
+// 			}
+
+// 			validateCacheContentsAfterTest(t, tc, bytesLimitCache)
+// 		})
+// 	}
+// }

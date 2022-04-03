@@ -70,7 +70,7 @@ var (
 	}
 )
 
-func Test_Cache_Add(t *testing.T) {
+func Test_NodeLimitCache_Add(t *testing.T) {
 	testcases := map[string]testcase{
 		"add 1 node with 1 limit - added": {
 			cacheLimit: 1,
@@ -193,7 +193,7 @@ func Test_Cache_Add(t *testing.T) {
 	}
 }
 
-func Test_Cache_Remove(t *testing.T) {
+func Test_NodeLimitCache_Remove(t *testing.T) {
 	testcases := map[string]testcase{
 		"remove non-existent key, cache limit 0 - nil returned": {
 			cacheLimit: 0,
