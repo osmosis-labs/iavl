@@ -15,7 +15,8 @@ import (
 type expectedResult int
 
 const (
-	noneRemoved expectedResult = -1
+	allButLastRemoved expectedResult = -2
+	noneRemoved       expectedResult = -1
 	// The rest represent the index of the removed node
 )
 
@@ -25,8 +26,8 @@ type testNode struct {
 }
 
 type cacheOp struct {
-	testNodexIdx   int
-	expectedResult expectedResult
+	testNodexIdx       int
+	expectedResult     expectedResult
 	expectedBytesLimit int // used for testing lruCacheWithBytesLimit
 }
 
@@ -61,6 +62,9 @@ var (
 		},
 		&testNode{
 			key: []byte(fmt.Sprintf("%s%d", testKey, 3)),
+		},
+		&testNode{
+			key: []byte(fmt.Sprintf("%s%d%s%d%s%d", testKey, 4, testKey, 4, testKey, 4)),
 		},
 	}
 )

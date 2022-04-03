@@ -12,8 +12,8 @@ var _ Cache = (*lruCacheWithNodeLimit)(nil)
 func NewWithNodeLimit(nodeLimit int) Cache {
 	return &lruCacheWithNodeLimit{
 		lruCache: lruCache{
-			dict:       make(map[string]*list.Element),
-			ll:         list.New(),
+			dict: make(map[string]*list.Element),
+			ll:   list.New(),
 		},
 		nodeLimit: nodeLimit,
 	}

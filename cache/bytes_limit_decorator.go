@@ -9,7 +9,7 @@ import (
 
 type lruCacheWithBytesLimit struct {
 	lruCache
-	bytesLimit int
+	bytesLimit       int
 	curBytesEstimate int
 }
 
@@ -18,8 +18,8 @@ var _ Cache = (*lruCacheWithBytesLimit)(nil)
 func NewWithBytesLimit(bytesLimit int) Cache {
 	return &lruCacheWithBytesLimit{
 		lruCache: lruCache{
-			dict:       make(map[string]*list.Element),
-			ll:         list.New(),
+			dict: make(map[string]*list.Element),
+			ll:   list.New(),
 		},
 		bytesLimit: bytesLimit,
 	}
@@ -45,9 +45,9 @@ func (c *lruCacheWithBytesLimit) remove(e *list.Element) Node {
 // With the current design, a list.Element is created that consists of 4 pointers.
 // In addition, a pointer to the element is stored in the Go map and has string as a key
 func getCacheElemMetadataSize() int {
-	return 	common.GetStringSizeBytes() + // cache dict key
-	common.UintSizeBytes + // pointer to the element in dict
-	common.Uint64Size * 4 // 4 pointers within list.Element
+	return common.GetStringSizeBytes() + // cache dict key
+		common.UintSizeBytes + // pointer to the element in dict
+		common.Uint64Size*4 // 4 pointers within list.Element
 }
 
 // getCacheCurrentBytes returns the current bytes

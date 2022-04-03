@@ -6,8 +6,8 @@ import (
 
 // lruCache is an abstract LRU cache implementation with no limits.
 type lruCache struct {
-	dict       map[string]*list.Element // FastNode cache.
-	ll         *list.List               // LRU queue of cache elements. Used for deletion.
+	dict map[string]*list.Element // FastNode cache.
+	ll   *list.List               // LRU queue of cache elements. Used for deletion.
 }
 
 var _ Cache = (*lruCache)(nil)
@@ -28,7 +28,7 @@ func (c *lruCache) add(node Node) Node {
 func (c *lruCache) Get(key []byte) Node {
 	if elem := c.get(key); elem != nil {
 		return elem.Value.(Node)
-	} 
+	}
 	return nil
 }
 
@@ -42,7 +42,7 @@ func (nc *lruCache) Len() int {
 }
 
 func (c *lruCache) get(key []byte) *list.Element {
-	elem , exists := c.dict[string(key)]
+	elem, exists := c.dict[string(key)]
 	if exists {
 		c.ll.MoveToFront(elem)
 		return elem

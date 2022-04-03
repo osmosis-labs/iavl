@@ -29,7 +29,7 @@ type Cache interface {
 
 	// remove removes node with key from cache. The removed node is returned.
 	// if not in cache, return nil.
-	remove(e *list.Element) Node 
+	remove(e *list.Element) Node
 
 	isOverLimit() bool
 
@@ -51,17 +51,4 @@ func Remove(c Cache, key []byte) Node {
 		return c.remove(elem)
 	}
 	return nil
-}
-
-// Used for testing, returns removed Nodes
-func add(c Cache, node Node) []Node  {
-	if old := c.add(node); old != nil {
-		return []Node{old}
-	}
-
-	removed := make([]Node, 0)
-	for c.isOverLimit() {
-		removed = append(removed, c.remove(c.getOldest()))
-	}
-	return removed
 }
