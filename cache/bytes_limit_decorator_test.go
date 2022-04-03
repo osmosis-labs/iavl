@@ -18,6 +18,7 @@ func Test_BytesLimit_Add(t *testing.T) {
 					{
 						testNodexIdx:   0,
 						expectedResult: noneRemoved,
+						expectedBytesLimit: testNodes[nodeIdx].GetFullSize() + cache.GetCacheElemMetadataSize(),
 					},
 				},
 				expectedNodeIndexes: []int{nodeIdx},
@@ -32,10 +33,12 @@ func Test_BytesLimit_Add(t *testing.T) {
 					{
 						testNodexIdx:   nodeIdx,
 						expectedResult: noneRemoved,
+						expectedBytesLimit: testNodes[nodeIdx].GetFullSize() + cache.GetCacheElemMetadataSize(),
 					},
 					{
 						testNodexIdx:   nodeIdx + 1,
 						expectedResult: nodeIdx,
+						expectedBytesLimit: testNodes[nodeIdx + 1].GetFullSize() + cache.GetCacheElemMetadataSize(),
 					},
 				},
 				expectedNodeIndexes: []int{nodeIdx + 1},
@@ -67,6 +70,10 @@ func Test_BytesLimit_Add(t *testing.T) {
 					require.Contains(t, actualResult, testNodes[int(op.expectedResult)])
 				}
 				require.Equal(t, expectedCurSize, c.Len())
+				
+				currentBytes, err := cache.GetCacheCurrentBytes(c)
+				require.NoError(t, err)
+				require.Equal(t, op.expectedBytesLimit, currentBytes)
 			}
 
 			validateCacheContentsAfterTest(t, tc, c)

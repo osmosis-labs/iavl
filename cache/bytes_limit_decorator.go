@@ -2,6 +2,7 @@ package cache
 
 import (
 	"container/list"
+	"errors"
 
 	"github.com/cosmos/iavl/common"
 )
@@ -11,6 +12,8 @@ type lruCacheWithBytesLimit struct {
 	bytesLimit int
 	curBytesEstimate int
 }
+
+var _ Cache = (*lruCacheWithBytesLimit)(nil)
 
 func NewWithBytesLimit(bytesLimit int) Cache {
 	return &lruCacheWithBytesLimit{
@@ -45,4 +48,15 @@ func getCacheElemMetadataSize() int {
 	return 	common.GetStringSizeBytes() + // cache dict key
 	common.UintSizeBytes + // pointer to the element in dict
 	common.Uint64Size * 4 // 4 pointers within list.Element
+}
+
+// getCacheCurrentBytes returns the current bytes
+// estimate of the cache if the cache is lruCacheWithBytesLimit.
+// If not, returns 0 and error.
+func getCacheCurrentBytes(c Cache) (int, error) {
+	withBytesLimit, ok := c.(*lruCacheWithBytesLimit)
+	if ok {
+		return withBytesLimit.curBytesEstimate, nil
+	}
+	return 0, errors.New("cannot get bytes limit, not lruCacheWithBytesLimit")
 }

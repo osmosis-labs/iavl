@@ -27,6 +27,7 @@ type testNode struct {
 type cacheOp struct {
 	testNodexIdx   int
 	expectedResult expectedResult
+	expectedBytesLimit int // used for testing lruCacheWithBytesLimit
 }
 
 type testcase struct {

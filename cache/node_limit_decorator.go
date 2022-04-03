@@ -7,6 +7,8 @@ type lruCacheWithNodeLimit struct {
 	nodeLimit int
 }
 
+var _ Cache = (*lruCacheWithNodeLimit)(nil)
+
 func NewWithNodeLimit(nodeLimit int) Cache {
 	return &lruCacheWithNodeLimit{
 		lruCache: lruCache{
