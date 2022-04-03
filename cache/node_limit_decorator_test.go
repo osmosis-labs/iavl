@@ -131,10 +131,10 @@ func Test_NodeLimitCache_Add(t *testing.T) {
 }
 
 func Test_NodeLimitCache_Remove(t *testing.T) {
-	testcases := map[string] func () testcase {
+	testcases := map[string]func() testcase{
 		"remove non-existent key, cache limit 0 - nil returned": func() testcase {
 
-			return testcase {
+			return testcase{
 				cacheLimit: 0,
 				cacheOps: []cacheOp{
 					{
@@ -163,17 +163,17 @@ func Test_NodeLimitCache_Remove(t *testing.T) {
 		"remove existent key, cache limit 1 - removed": func() testcase {
 
 			return testcase{
-					setup: func(c cache.Cache) {
-						require.Empty(t, cache.MockAdd(c, testNodes[0]))
-						require.Equal(t, 1, c.Len())
+				setup: func(c cache.Cache) {
+					require.Empty(t, cache.MockAdd(c, testNodes[0]))
+					require.Equal(t, 1, c.Len())
+				},
+				cacheLimit: 1,
+				cacheOps: []cacheOp{
+					{
+						testNodexIdx:   0,
+						expectedResult: 0,
 					},
-					cacheLimit: 1,
-					cacheOps: []cacheOp{
-						{
-							testNodexIdx:   0,
-							expectedResult: 0,
-						},
-					},
+				},
 			}
 		},
 		"remove twice, cache limit 1 - removed first time, then nil": func() testcase {
