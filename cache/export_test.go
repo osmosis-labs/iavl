@@ -5,7 +5,7 @@ var (
 	GetCacheCurrentBytes     = getCacheCurrentBytes
 )
 
-// Used for testing, returns removed Nodes
+// Used for testing, returns removed Nodes after adding current
 func MockAdd(c Cache, node Node) []Node {
 	c.add(node)
 
