@@ -15,7 +15,7 @@ import (
 type expectedResult int
 
 const (
-	updated expectedResult = -3
+	updated           expectedResult = -3
 	allButLastRemoved expectedResult = -2
 	noneRemoved       expectedResult = -1
 	// The rest represent the index of the removed node
