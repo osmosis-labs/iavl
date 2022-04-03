@@ -25,6 +25,7 @@ endif
 test:
 	@echo "--> Running go test"
 	@go test ./... $(LDFLAGS) -v --race
+	@go test ./cache $(LDFLAGS) -v --race
 .PHONY: test
 
 tools:
