@@ -1,73 +1,10 @@
 package cache_test
 
 import (
-	"crypto/rand"
-	"fmt"
 	"testing"
 
 	"github.com/cosmos/iavl/cache"
-	"github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
-)
-
-// expectedResult represents the expected result of each add/remove operation.
-// It can be noneRemoved or the index of the removed node in testNodes
-type expectedResult int
-
-const (
-	updated           expectedResult = -3
-	allButLastRemoved expectedResult = -2
-	noneRemoved       expectedResult = -1
-	// The rest represent the index of the removed node
-)
-
-// testNode is the node used for testing cache implementation
-type testNode struct {
-	key []byte
-}
-
-type cacheOp struct {
-	testNodexIdx       int
-	expectedResult     expectedResult
-	expectedBytesLimit int // used for testing lruCacheWithBytesLimit
-}
-
-type testcase struct {
-	setup               func(cache.Cache)
-	cacheLimit          int
-	cacheOps            []cacheOp
-	expectedNodeIndexes []int // contents of the cache once test case completes represent by indexes in testNodes
-}
-
-func (tn *testNode) GetKey() []byte {
-	return tn.key
-}
-
-func (tn *testNode) GetFullSize() int {
-	return len(tn.key) + common.GetSliceSizeBytes()
-}
-
-const (
-	testKey = "key"
-)
-
-var _ cache.Node = (*testNode)(nil)
-
-var (
-	testNodes = []cache.Node{
-		&testNode{
-			key: []byte(fmt.Sprintf("%s%d", testKey, 1)),
-		},
-		&testNode{
-			key: []byte(fmt.Sprintf("%s%d", testKey, 2)),
-		},
-		&testNode{
-			key: []byte(fmt.Sprintf("%s%d", testKey, 3)),
-		},
-		&testNode{
-			key: []byte(fmt.Sprintf("%s%d%s%d%s%d", testKey, 4, testKey, 4, testKey, 4)),
-		},
-	}
 )
 
 func Test_NodeLimitCache_Add(t *testing.T) {
@@ -194,132 +131,102 @@ func Test_NodeLimitCache_Add(t *testing.T) {
 }
 
 func Test_NodeLimitCache_Remove(t *testing.T) {
-	testcases := map[string]testcase{
-		"remove non-existent key, cache limit 0 - nil returned": {
-			cacheLimit: 0,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+	testcases := map[string] func () testcase {
+		"remove non-existent key, cache limit 0 - nil returned": func() testcase {
+
+			return testcase {
+				cacheLimit: 0,
+				cacheOps: []cacheOp{
+					{
+						testNodexIdx:   0,
+						expectedResult: noneRemoved,
+					},
 				},
-			},
+			}
 		},
-		"remove non-existent key, cache limit 1 - nil returned": {
-			setup: func(c cache.Cache) {
-				require.Empty(t, cache.MockAdd(c, testNodes[1]))
-				require.Equal(t, 1, c.Len())
-			},
-			cacheLimit: 1,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+		"remove non-existent key, cache limit 1 - nil returned": func() testcase {
+			return testcase{
+				setup: func(c cache.Cache) {
+					require.Empty(t, cache.MockAdd(c, testNodes[1]))
+					require.Equal(t, 1, c.Len())
 				},
-			},
-			expectedNodeIndexes: []int{1},
+				cacheLimit: 1,
+				cacheOps: []cacheOp{
+					{
+						testNodexIdx:   0,
+						expectedResult: noneRemoved,
+					},
+				},
+				expectedNodeIndexes: []int{1},
+			}
 		},
-		"remove existent key, cache limit 1 - removed": {
-			setup: func(c cache.Cache) {
-				require.Empty(t, cache.MockAdd(c, testNodes[0]))
-				require.Equal(t, 1, c.Len())
-			},
-			cacheLimit: 1,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: 0,
-				},
-			},
+		"remove existent key, cache limit 1 - removed": func() testcase {
+
+			return testcase{
+					setup: func(c cache.Cache) {
+						require.Empty(t, cache.MockAdd(c, testNodes[0]))
+						require.Equal(t, 1, c.Len())
+					},
+					cacheLimit: 1,
+					cacheOps: []cacheOp{
+						{
+							testNodexIdx:   0,
+							expectedResult: 0,
+						},
+					},
+			}
 		},
-		"remove twice, cache limit 1 - removed first time, then nil": {
-			setup: func(c cache.Cache) {
-				require.Empty(t, cache.MockAdd(c, testNodes[0]))
-				require.Equal(t, 1, c.Len())
-			},
-			cacheLimit: 1,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   0,
-					expectedResult: 0,
+		"remove twice, cache limit 1 - removed first time, then nil": func() testcase {
+			return testcase{
+				setup: func(c cache.Cache) {
+					require.Empty(t, cache.MockAdd(c, testNodes[0]))
+					require.Equal(t, 1, c.Len())
 				},
-				{
-					testNodexIdx:   0,
-					expectedResult: noneRemoved,
+				cacheLimit: 1,
+				cacheOps: []cacheOp{
+					{
+						testNodexIdx:   0,
+						expectedResult: 0,
+					},
+					{
+						testNodexIdx:   0,
+						expectedResult: noneRemoved,
+					},
 				},
-			},
+			}
 		},
-		"remove all, cache limit 3": {
-			setup: func(c cache.Cache) {
-				require.Empty(t, cache.MockAdd(c, testNodes[0]))
-				require.Empty(t, cache.MockAdd(c, testNodes[1]))
-				require.Empty(t, cache.MockAdd(c, testNodes[2]))
-				require.Equal(t, 3, c.Len())
-			},
-			cacheLimit: 3,
-			cacheOps: []cacheOp{
-				{
-					testNodexIdx:   2,
-					expectedResult: 2,
+		"remove all, cache limit 3": func() testcase {
+			return testcase{
+				setup: func(c cache.Cache) {
+					require.Empty(t, cache.MockAdd(c, testNodes[0]))
+					require.Empty(t, cache.MockAdd(c, testNodes[1]))
+					require.Empty(t, cache.MockAdd(c, testNodes[2]))
+					require.Equal(t, 3, c.Len())
 				},
-				{
-					testNodexIdx:   0,
-					expectedResult: 0,
+				cacheLimit: 3,
+				cacheOps: []cacheOp{
+					{
+						testNodexIdx:   2,
+						expectedResult: 2,
+					},
+					{
+						testNodexIdx:   0,
+						expectedResult: 0,
+					},
+					{
+						testNodexIdx:   1,
+						expectedResult: 1,
+					},
 				},
-				{
-					testNodexIdx:   1,
-					expectedResult: 1,
-				},
-			},
+			}
 		},
 	}
 
-	for name, tc := range testcases {
+	for name, getTestcaseFn := range testcases {
 		t.Run(name, func(t *testing.T) {
+			tc := getTestcaseFn()
 			nodeLimitCache := cache.NewWithNodeLimit(tc.cacheLimit)
-
-			if tc.setup != nil {
-				tc.setup(nodeLimitCache)
-			}
-
-			expectedCurSize := nodeLimitCache.Len()
-
-			for _, op := range tc.cacheOps {
-
-				actualResult := cache.Remove(nodeLimitCache, testNodes[op.testNodexIdx].GetKey())
-
-				expectedResult := op.expectedResult
-
-				if expectedResult == noneRemoved {
-					require.Nil(t, actualResult)
-				} else {
-					expectedCurSize--
-					require.NotNil(t, actualResult)
-
-					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
-				}
-				require.Equal(t, expectedCurSize, nodeLimitCache.Len())
-			}
-
-			validateCacheContentsAfterTest(t, tc, nodeLimitCache)
+			testRemove(t, nodeLimitCache, tc)
 		})
 	}
-}
-
-func validateCacheContentsAfterTest(t *testing.T, tc testcase, cache cache.Cache) {
-	require.Equal(t, len(tc.expectedNodeIndexes), cache.Len())
-	for _, idx := range tc.expectedNodeIndexes {
-		expectedNode := testNodes[idx]
-		require.True(t, cache.Has(expectedNode.GetKey()))
-		require.Equal(t, expectedNode, cache.Get(expectedNode.GetKey()))
-	}
-}
-
-func randBytes(length int) []byte {
-	key := make([]byte, length)
-	// math.rand.Read always returns err=nil
-	// we do not need cryptographic randomness for this test:
-	//nolint:gosec
-	rand.Read(key)
-	return key
 }

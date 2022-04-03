@@ -272,34 +272,8 @@ func Test_BytesLimitCache_Remove(t *testing.T) {
 	for name, getTestcaseFn := range testcases {
 		t.Run(name, func(t *testing.T) {
 			tc := getTestcaseFn()
-
 			bytesLimitCache := cache.NewWithNodeLimit(tc.cacheLimit)
-
-			if tc.setup != nil {
-				tc.setup(bytesLimitCache)
-			}
-
-			expectedCurSize := bytesLimitCache.Len()
-
-			for _, op := range tc.cacheOps {
-
-				actualResult := cache.Remove(bytesLimitCache, testNodes[op.testNodexIdx].GetKey())
-
-				expectedResult := op.expectedResult
-
-				if expectedResult == noneRemoved {
-					require.Nil(t, actualResult)
-				} else {
-					expectedCurSize--
-					require.NotNil(t, actualResult)
-
-					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
-					require.Equal(t, testNodes[int(op.expectedResult)], actualResult)
-				}
-				require.Equal(t, expectedCurSize, bytesLimitCache.Len())
-			}
-
-			validateCacheContentsAfterTest(t, tc, bytesLimitCache)
+			testRemove(t, bytesLimitCache, tc)
 		})
 	}
 }

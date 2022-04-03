@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/cosmos/iavl/cache"
@@ -63,4 +64,13 @@ func BenchmarkRemove(b *testing.B) {
 		b.ResetTimer()
 		_ = cache.Remove(c, key)
 	}
+}
+
+func randBytes(length int) []byte {
+	key := make([]byte, length)
+	// math.rand.Read always returns err=nil
+	// we do not need cryptographic randomness for this test:
+	//nolint:gosec
+	rand.Read(key)
+	return key
 }
