@@ -32,6 +32,3 @@ jobs:
           go test ./... -mod=readonly -timeout 5m -short -race -coverprofile=coverage.txt -covermode=atomic
           go test ./... -mod=readonly -timeout 5m
           GOARCH=386 go test ./... -mod=readonly -timeout 5m
-          go test ./cache -mod=readonly -timeout 5m -short -race -coverprofile=coverage2.txt -covermode=atomic
-          go test ./cache -mod=readonly -timeout 5m
-          GOARCH=386 go test ./cache -mod=readonly -timeout 5m
