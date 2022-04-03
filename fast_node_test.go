@@ -63,12 +63,12 @@ func TestFastNode_GetFullSize(t *testing.T) {
 		node        *FastNode
 		expectedSize int
 	}{
-		"empty": {&FastNode{}, common.UintSizeBytes * 7},
+		"empty": {&FastNode{}, common.UintSizeBytes * 6 + common.Uint64Size},
 		"with data": {&FastNode{
 			key:                  []byte{0x4},
 			versionLastUpdatedAt: 1,
 			value:                []byte{0x2, 0x3},
-		}, common.UintSizeBytes * 7 + 1 + 2},
+		}, common.UintSizeBytes * 6 + common.Uint64Size + 1 + 2},
 	}
 	for name, tc := range testcases {
 		tc := tc
