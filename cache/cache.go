@@ -21,9 +21,8 @@ type Cache interface {
 	// Len returns the cache length.
 	Len() int
 
-	// add dds node to cache. If full and had to remove the oldest element,
-	// returns the oldest, otherwise nil.
-	add(node Node) Node
+	// add adds node to cache.
+	add(node Node)
 
 	get(key []byte) *list.Element
 
@@ -37,9 +36,7 @@ type Cache interface {
 }
 
 func Add(c Cache, node Node) {
-	if old := c.add(node); old != nil {
-		return
-	}
+	c.add(node)
 
 	for c.isOverLimit() {
 		c.remove(c.getOldest())

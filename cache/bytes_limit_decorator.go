@@ -29,9 +29,9 @@ func (c *lruCacheWithBytesLimit) isOverLimit() bool {
 	return c.curBytesEstimate > c.bytesLimit
 }
 
-func (c *lruCacheWithBytesLimit) add(node Node) Node {
+func (c *lruCacheWithBytesLimit) add(node Node) {
 	c.curBytesEstimate += (node.GetFullSize() + getCacheElemMetadataSize())
-	return c.lruCache.add(node)
+	c.lruCache.add(node)
 }
 
 func (c *lruCacheWithBytesLimit) remove(e *list.Element) Node {

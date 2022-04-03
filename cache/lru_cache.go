@@ -12,17 +12,15 @@ type lruCache struct {
 
 var _ Cache = (*lruCache)(nil)
 
-func (c *lruCache) add(node Node) Node {
+func (c *lruCache) add(node Node) {
 	if e, exists := c.dict[string(node.GetKey())]; exists {
 		c.ll.MoveToFront(e)
-		old := e.Value
 		e.Value = node
-		return old.(Node)
+		return
 	}
 
 	elem := c.ll.PushFront(node)
 	c.dict[string(node.GetKey())] = elem
-	return nil
 }
 
 func (c *lruCache) Get(key []byte) Node {

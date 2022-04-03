@@ -15,6 +15,7 @@ import (
 type expectedResult int
 
 const (
+	updated expectedResult = -3
 	allButLastRemoved expectedResult = -2
 	noneRemoved       expectedResult = -1
 	// The rest represent the index of the removed node
@@ -90,7 +91,7 @@ func Test_Cache_Add(t *testing.T) {
 				},
 				{
 					testNodexIdx:   0,
-					expectedResult: 0,
+					expectedResult: updated,
 				},
 			},
 			expectedNodeIndexes: []int{0},
@@ -172,10 +173,13 @@ func Test_Cache_Add(t *testing.T) {
 
 				expectedResult := op.expectedResult
 
-				if expectedResult == noneRemoved {
-					require.Empty(t, actualResult)
+				switch expectedResult {
+				case noneRemoved:
 					expectedCurSize++
-				} else {
+					fallthrough
+				case updated:
+					require.Empty(t, actualResult)
+				default:
 					require.NotNil(t, actualResult)
 
 					// Here, op.expectedResult represents the index of the removed node in tc.cacheOps
