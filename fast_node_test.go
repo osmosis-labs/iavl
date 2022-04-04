@@ -63,7 +63,10 @@ func TestFastNode_GetFullSize(t *testing.T) {
 		node        *FastNode
 		expectedSize int
 	}{
-		"empty": {&FastNode{}, common.UintSizeBytes * 6 + common.Uint64Size},
+		"empty": {
+		  &FastNode{}, 
+		  common.UintSizeBytes * 6 + common.Uint64Size,
+		},
 		"with data": {&FastNode{
 			key:                  []byte{0x4},
 			versionLastUpdatedAt: 1,
