@@ -29,7 +29,7 @@ const (
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue    = "1.1.0"
-	fastNodeCacheLimit = 100 * 1024 * 1024
+	fastNodeCacheLimit         = 100 * 1024 * 1024
 )
 
 var (

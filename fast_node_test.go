@@ -60,18 +60,18 @@ func TestFastNode_encode_decode(t *testing.T) {
 
 func TestFastNode_GetFullSize(t *testing.T) {
 	testcases := map[string]struct {
-		node        *FastNode
+		node         *FastNode
 		expectedSize int
 	}{
 		"empty": {
-		  &FastNode{}, 
-		  common.UintSizeBytes * 6 + common.Uint64Size,
+			&FastNode{},
+			common.UintSizeBytes*6 + common.Uint64Size,
 		},
 		"with data": {&FastNode{
 			key:                  []byte{0x4},
 			versionLastUpdatedAt: 1,
 			value:                []byte{0x2, 0x3},
-		}, common.UintSizeBytes * 6 + common.Uint64Size + 1 + 2},
+		}, common.UintSizeBytes*6 + common.Uint64Size + 1 + 2},
 	}
 	for name, tc := range testcases {
 		tc := tc

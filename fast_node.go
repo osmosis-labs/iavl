@@ -50,14 +50,23 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 	return fastNode, nil
 }
 
+// GetKey returns a node's key
+// Implements cache.Node interface.
 func (fn *FastNode) GetKey() []byte {
 	return fn.key
 }
 
+// GetFullSize returns the number of bytes a node occupies in memory.
+// Implements cache.Node interface. It is needed to enable cache's bytes limit decorator.
+//
+// Here, we estimate the following:
+// key                  []byte - number of bytes in the slice + the underlying slice's structure
+// versionLastUpdatedAt int64 - size of the 64 bit integer
+// value                []byte - number of bytes in the slice + the underlying slice's structure
 func (fn *FastNode) GetFullSize() int {
 	return len(fn.key) + common.GetSliceSizeBytes() +
-	common.Uint64Size +
-	len(fn.value) + common.GetSliceSizeBytes()
+		common.Uint64Size +
+		len(fn.value) + common.GetSliceSizeBytes()
 }
 
 func (node *FastNode) encodedSize() int {

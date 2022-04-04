@@ -4,10 +4,10 @@ import "container/list"
 
 // Node represents a node eligible for caching.
 type Node interface {
-	// GetKey returns node's key
+	// GetKey returns a node's key
 	GetKey() []byte
 
-	// GetFullSize returns the number of bytes node occupies in memory.
+	// GetFullSize returns the number of bytes a node occupies in memory.
 	GetFullSize() int
 }
 
