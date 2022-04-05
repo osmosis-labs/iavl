@@ -203,6 +203,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 
 	for numberOfSets+numberOfRemovals+numberOfUpdates > 0 {
 		randOp := rand.Intn(2)
+		// nolint: gocritic
 		if randOp == 0 && numberOfSets > 0 {
 
 			numberOfSets--

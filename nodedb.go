@@ -269,7 +269,7 @@ func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
 // SaveNode saves a FastNode to disk.
 func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) error {
 	if node.key == nil {
-		return fmt.Errorf("FastNode cannot have a nil value for key")
+		return fmt.Errorf("cannot have a nil value for key")
 	}
 
 	// Save node bytes to db.
@@ -701,7 +701,7 @@ func (ndb *nodeDB) getPreviousVersion(version int64) int64 {
 // deleteRoot deletes the root entry from disk, but not the node it points to.
 func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 	if checkLatestVersion && version == ndb.getLatestVersion() {
-		return errors.New("Tried to delete latest version")
+		return errors.New("tried to delete latest version")
 	}
 	if err := ndb.batch.Delete(ndb.rootKey(version)); err != nil {
 		return err

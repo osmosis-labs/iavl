@@ -80,9 +80,8 @@ func NewUnsavedFastIterator(start, end []byte, ascending bool, ndb *nodeDB, unsa
 	sort.Slice(iter.unsavedFastNodesToSort, func(i, j int) bool {
 		if ascending {
 			return iter.unsavedFastNodesToSort[i] < iter.unsavedFastNodesToSort[j]
-		} else {
-			return iter.unsavedFastNodesToSort[i] > iter.unsavedFastNodesToSort[j]
 		}
+		return iter.unsavedFastNodesToSort[i] > iter.unsavedFastNodesToSort[j]
 	})
 
 	if iter.ndb == nil {
@@ -178,15 +177,15 @@ func (iter *UnsavedFastIterator) Next() {
 			iter.nextVal = nextUnsavedNode.value
 
 			iter.nextUnsavedNodeIdx++
-			return
+
 		} else {
 			// Disk node is next
 			iter.nextKey = iter.fastIterator.Key()
 			iter.nextVal = iter.fastIterator.Value()
 
 			iter.fastIterator.Next()
-			return
 		}
+		return
 	}
 
 	// if only nodes on disk are left, we return them

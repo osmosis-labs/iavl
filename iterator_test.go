@@ -388,8 +388,10 @@ func setupUnsavedFastIterator(t *testing.T, config *iteratorTestConfig) (dbm.Ite
 	// Merge the two halves
 	var mergedMirror [][]string
 	if config.ascending {
+		// nolint: gocritic
 		mergedMirror = append(firstHalfMirror, secondHalfMirror...)
 	} else {
+		// nolint: gocritic
 		mergedMirror = append(secondHalfMirror, firstHalfMirror...)
 	}
 

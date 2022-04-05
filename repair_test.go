@@ -83,6 +83,7 @@ func TestRepair013Orphans(t *testing.T) {
 }
 
 // assertVersion checks the given version (or current if 0) against the expected values.
+// nolint: unused
 func assertVersion(t *testing.T, tree *MutableTree, version int64) {
 	var err error
 	itree := tree.ImmutableTree
@@ -162,6 +163,7 @@ func assertVersion(t *testing.T, tree *MutableTree, version int64) {
 }*/
 
 // copyDB makes a shallow copy of the source database directory.
+// nolint: unused
 func copyDB(src, dest string) error {
 	entries, err := ioutil.ReadDir(src)
 	if err != nil {
