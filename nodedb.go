@@ -329,7 +329,9 @@ func (ndb *nodeDB) SaveBranch(node *Node) []byte {
 
 	// resetBatch only working on generate a genesis block
 	if node.version <= genesisVersion {
-		ndb.resetBatch()
+		if err := ndb.resetBatch(); err != nil {
+			panic(err)
+		}
 	}
 	node.leftNode = nil
 	node.rightNode = nil
@@ -821,13 +823,13 @@ func (ndb *nodeDB) getRoot(version int64) ([]byte, error) {
 func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 	roots := map[int64][]byte{}
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
+	err := ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
 		var version int64
 		rootKeyFormat.Scan(k, &version)
 		roots[version] = v
 		return nil
 	})
-	return roots, nil
+	return roots, err
 }
 
 // SaveRoot creates an entry on disk for the given root, so that it can be
@@ -980,13 +982,18 @@ func (ndb *nodeDB) String() (string, error) {
 	var str string
 	index := 0
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
+	err := ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
+
+	if err != nil {
+		return "", err
+	}
+
 	str += "\n"
 
-	err := ndb.traverseOrphans(func(key, value []byte) error {
+	err = ndb.traverseOrphans(func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})

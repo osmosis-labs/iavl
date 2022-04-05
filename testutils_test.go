@@ -16,9 +16,11 @@ import (
 )
 
 type iteratorTestConfig struct {
-	startByteToSet, endByteToSet byte
-	startIterate, endIterate     []byte
-	ascending                    bool
+	startIterate   []byte
+	endIterate     []byte
+	startByteToSet byte
+	endByteToSet   byte
+	ascending      bool
 }
 
 func randstr(length int) string {

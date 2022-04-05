@@ -822,7 +822,9 @@ func (tree *MutableTree) saveFastNodeRemovals() error {
 	sort.Strings(keysToSort)
 
 	for _, key := range keysToSort {
-		tree.ndb.DeleteFastNode([]byte(key))
+		if err := tree.ndb.DeleteFastNode([]byte(key)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

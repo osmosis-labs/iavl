@@ -46,7 +46,7 @@ func (t *ImmutableTree) GetNonMembershipProof(key []byte) (proof *ics23.Commitme
 			return nil, err
 		}
 	}
-	
+
 	// this will be nil if nothing right of the queried key
 	rightkey, _ := t.GetByIndex(idx)
 	if rightkey != nil {
