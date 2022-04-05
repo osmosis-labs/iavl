@@ -27,7 +27,8 @@ func BenchmarkAdd(b *testing.B) {
 		},
 	}
 
-	for name, tc := range testcases {
+	for name, testcase := range testcases {
+		tc := testcase
 		cache := cache.New(tc.cacheLimit)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

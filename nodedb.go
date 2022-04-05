@@ -767,7 +767,7 @@ func (ndb *nodeDB) traversePrefix(prefix []byte, fn func(k, v []byte) error) err
 
 // Get iterator for fast prefix and error, if any
 func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
-	var startFormatted, endFormatted []byte = nil, nil
+	var startFormatted, endFormatted []byte
 
 	if start != nil {
 		startFormatted = fastKeyFormat.KeyBytes(start)
