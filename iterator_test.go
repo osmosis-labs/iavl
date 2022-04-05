@@ -115,6 +115,7 @@ func TestIterator_Empty_Invalid(t *testing.T) {
 	})
 }
 
+// nolint: dupl
 func TestIterator_Basic_Ranged_Ascending_Success(t *testing.T) {
 	config := &iteratorTestConfig{
 		startByteToSet: 'a',
@@ -153,6 +154,7 @@ func TestIterator_Basic_Ranged_Ascending_Success(t *testing.T) {
 	})
 }
 
+// nolint: dupl
 func TestIterator_Basic_Ranged_Descending_Success(t *testing.T) {
 	config := &iteratorTestConfig{
 		startByteToSet: 'a',

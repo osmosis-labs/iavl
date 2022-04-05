@@ -423,8 +423,8 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			}
 			ndb.nodeCache.Remove(hash)
 		} else if toVersion >= version-1 {
-			if err := ndb.batch.Delete(key); err != nil {
-				return err
+			if err2 := ndb.batch.Delete(key); err != nil {
+				return err2
 			}
 		}
 		return nil
@@ -436,8 +436,8 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 
 	// Delete the version root entries
 	err = ndb.traverseRange(rootKeyFormat.Key(version), rootKeyFormat.Key(int64(math.MaxInt64)), func(k, v []byte) error {
-		if err := ndb.batch.Delete(k); err != nil {
-			return err
+		if err2 := ndb.batch.Delete(k); err != nil {
+			return err2
 		}
 		return nil
 	})
@@ -449,15 +449,15 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 	// Delete fast node entries
 	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
 		key := keyWithPrefix[1:]
-		fastNode, err := DeserializeFastNode(key, v)
+		fastNode, err2 := DeserializeFastNode(key, v)
 
-		if err != nil {
-			return err
+		if err2 != nil {
+			return err2
 		}
 
 		if version <= fastNode.versionLastUpdatedAt {
-			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
-				return err
+			if err2 = ndb.batch.Delete(keyWithPrefix); err != nil {
+				return err2
 			}
 			ndb.fastNodeCache.Remove(key)
 		}
