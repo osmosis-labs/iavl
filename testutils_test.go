@@ -220,7 +220,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 
 			isUpdated := tree.Set([]byte(key), value)
 			require.True(t, isUpdated)
-			mirror[string(key)] = string(value)
+			mirror[key] = string(value)
 		} else if numberOfRemovals > 0 {
 
 			numberOfRemovals--
@@ -230,7 +230,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 			val, isRemoved := tree.Remove([]byte(key))
 			require.True(t, isRemoved)
 			require.NotNil(t, val)
-			delete(mirror, string(key))
+			delete(mirror, key)
 		}
 	}
 }
