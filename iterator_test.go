@@ -10,7 +10,7 @@ import (
 )
 
 func TestIterator_NewIterator_NilTree_Failure(t *testing.T) {
-	var start, end []byte = []byte{'a'}, []byte{'c'}
+	var start, end = []byte{'a'}, []byte{'c'}
 	ascending := true
 
 	performTest := func(t *testing.T, itr dbm.Iterator) {
@@ -42,7 +42,7 @@ func TestIterator_NewIterator_NilTree_Failure(t *testing.T) {
 }
 
 func TestUnsavedFastIterator_NewIterator_NilAdditions_Failure(t *testing.T) {
-	var start, end []byte = []byte{'a'}, []byte{'c'}
+	var start, end = []byte{'a'}, []byte{'c'}
 	ascending := true
 
 	performTest := func(t *testing.T, itr dbm.Iterator) {
@@ -115,6 +115,7 @@ func TestIterator_Empty_Invalid(t *testing.T) {
 	})
 }
 
+// nolint: dupl
 func TestIterator_Basic_Ranged_Ascending_Success(t *testing.T) {
 	config := &iteratorTestConfig{
 		startByteToSet: 'a',
@@ -153,6 +154,7 @@ func TestIterator_Basic_Ranged_Ascending_Success(t *testing.T) {
 	})
 }
 
+// nolint: dupl
 func TestIterator_Basic_Ranged_Descending_Success(t *testing.T) {
 	config := &iteratorTestConfig{
 		startByteToSet: 'a',
@@ -386,8 +388,10 @@ func setupUnsavedFastIterator(t *testing.T, config *iteratorTestConfig) (dbm.Ite
 	// Merge the two halves
 	var mergedMirror [][]string
 	if config.ascending {
+		// nolint: gocritic
 		mergedMirror = append(firstHalfMirror, secondHalfMirror...)
 	} else {
+		// nolint: gocritic
 		mergedMirror = append(secondHalfMirror, firstHalfMirror...)
 	}
 

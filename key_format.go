@@ -7,9 +7,9 @@ import (
 
 // Provides a fixed-width lexicographically sortable []byte key format
 type KeyFormat struct {
-	prefix    byte
 	layout    []int
 	length    int
+	prefix    byte
 	unbounded bool
 }
 

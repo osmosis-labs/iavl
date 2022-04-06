@@ -16,9 +16,11 @@ import (
 )
 
 type iteratorTestConfig struct {
-	startByteToSet, endByteToSet byte
-	startIterate, endIterate     []byte
-	ascending                    bool
+	startIterate   []byte
+	endIterate     []byte
+	startByteToSet byte
+	endByteToSet   byte
+	ascending      bool
 }
 
 func randstr(length int) string {
@@ -89,7 +91,7 @@ func randBytes(length int) []byte {
 	key := make([]byte, length)
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
-	//nolint:gosec
+
 	rand.Read(key)
 	return key
 }
@@ -201,6 +203,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 
 	for numberOfSets+numberOfRemovals+numberOfUpdates > 0 {
 		randOp := rand.Intn(2)
+		// nolint: gocritic
 		if randOp == 0 && numberOfSets > 0 {
 
 			numberOfSets--
@@ -220,7 +223,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 
 			isUpdated := tree.Set([]byte(key), value)
 			require.True(t, isUpdated)
-			mirror[string(key)] = string(value)
+			mirror[key] = string(value)
 		} else if numberOfRemovals > 0 {
 
 			numberOfRemovals--
@@ -230,7 +233,7 @@ func randomizeTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]s
 			val, isRemoved := tree.Remove([]byte(key))
 			require.True(t, isRemoved)
 			require.NotNil(t, val)
-			delete(mirror, string(key))
+			delete(mirror, key)
 		}
 	}
 }

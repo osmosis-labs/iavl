@@ -843,7 +843,10 @@ func (suite *ServerTestSuite) TestAvailableVersions() {
 
 	versionRes, err := suite.server.Version(context.Background(), nil)
 	suite.NoError(err)
-	newVersions := append(oldVersions, versionRes.Version)
+
+	newVersions := make([]int64, 0, len(oldVersions)+1)
+	newVersions = append(newVersions, oldVersions...)
+	newVersions = append(newVersions, versionRes.Version)
 
 	res2, err := suite.server.GetAvailableVersions(context.Background(), nil)
 	suite.NoError(err)

@@ -49,8 +49,8 @@ func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
 	return fastNode, nil
 }
 
-func (fn *FastNode) GetKey() []byte {
-	return fn.key
+func (node *FastNode) GetKey() []byte {
+	return node.key
 }
 
 func (node *FastNode) encodedSize() int {

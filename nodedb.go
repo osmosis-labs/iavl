@@ -29,7 +29,7 @@ const (
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue    = "1.1.0"
-	fastNodeCacheLimit = 100000
+	fastNodeCacheLimit         = 100000
 )
 
 var (
@@ -217,7 +217,7 @@ func (ndb *nodeDB) SaveFastNodeNoCache(node *FastNode) error {
 
 // setFastStorageVersionToBatch sets storage version to fast where the version is
 // 1.1.0-<version of the current live state>. Returns error if storage version is incorrect or on
-// db error, nil otherwise. Requires changes to be comitted after to be persisted.
+// db error, nil otherwise. Requires changes to be committed after to be persisted.
 func (ndb *nodeDB) setFastStorageVersionToBatch() error {
 	var newVersion string
 	if ndb.storageVersion >= fastStorageVersionValue {
@@ -269,7 +269,7 @@ func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
 // SaveNode saves a FastNode to disk.
 func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) error {
 	if node.key == nil {
-		return fmt.Errorf("FastNode cannot have a nil value for key")
+		return fmt.Errorf("cannot have a nil value for key")
 	}
 
 	// Save node bytes to db.
@@ -329,7 +329,9 @@ func (ndb *nodeDB) SaveBranch(node *Node) []byte {
 
 	// resetBatch only working on generate a genesis block
 	if node.version <= genesisVersion {
-		ndb.resetBatch()
+		if err := ndb.resetBatch(); err != nil {
+			panic(err)
+		}
 	}
 	node.leftNode = nil
 	node.rightNode = nil
@@ -423,8 +425,8 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			}
 			ndb.nodeCache.Remove(hash)
 		} else if toVersion >= version-1 {
-			if err := ndb.batch.Delete(key); err != nil {
-				return err
+			if err2 := ndb.batch.Delete(key); err != nil {
+				return err2
 			}
 		}
 		return nil
@@ -436,8 +438,8 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 
 	// Delete the version root entries
 	err = ndb.traverseRange(rootKeyFormat.Key(version), rootKeyFormat.Key(int64(math.MaxInt64)), func(k, v []byte) error {
-		if err := ndb.batch.Delete(k); err != nil {
-			return err
+		if err2 := ndb.batch.Delete(k); err != nil {
+			return err2
 		}
 		return nil
 	})
@@ -449,15 +451,15 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 	// Delete fast node entries
 	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
 		key := keyWithPrefix[1:]
-		fastNode, err := DeserializeFastNode(key, v)
+		fastNode, err2 := DeserializeFastNode(key, v)
 
-		if err != nil {
-			return err
+		if err2 != nil {
+			return err2
 		}
 
 		if version <= fastNode.versionLastUpdatedAt {
-			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
-				return err
+			if err2 = ndb.batch.Delete(keyWithPrefix); err != nil {
+				return err2
 			}
 			ndb.fastNodeCache.Remove(key)
 		}
@@ -699,11 +701,12 @@ func (ndb *nodeDB) getPreviousVersion(version int64) int64 {
 // deleteRoot deletes the root entry from disk, but not the node it points to.
 func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 	if checkLatestVersion && version == ndb.getLatestVersion() {
-		return errors.New("Tried to delete latest version")
+		return errors.New("tried to delete latest version")
 	}
 	if err := ndb.batch.Delete(ndb.rootKey(version)); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -767,7 +770,7 @@ func (ndb *nodeDB) traversePrefix(prefix []byte, fn func(k, v []byte) error) err
 
 // Get iterator for fast prefix and error, if any
 func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
-	var startFormatted, endFormatted []byte = nil, nil
+	var startFormatted, endFormatted []byte
 
 	if start != nil {
 		startFormatted = fastKeyFormat.KeyBytes(start)
@@ -821,13 +824,13 @@ func (ndb *nodeDB) getRoot(version int64) ([]byte, error) {
 func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 	roots := map[int64][]byte{}
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
+	err := ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
 		var version int64
 		rootKeyFormat.Scan(k, &version)
 		roots[version] = v
 		return nil
 	})
-	return roots, nil
+	return roots, err
 }
 
 // SaveRoot creates an entry on disk for the given root, so that it can be
@@ -980,13 +983,18 @@ func (ndb *nodeDB) String() (string, error) {
 	var str string
 	index := 0
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
+	err := ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
+
+	if err != nil {
+		return "", err
+	}
+
 	str += "\n"
 
-	err := ndb.traverseOrphans(func(key, value []byte) error {
+	err = ndb.traverseOrphans(func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})

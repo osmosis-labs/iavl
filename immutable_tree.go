@@ -87,12 +87,12 @@ func (t *ImmutableTree) renderNode(node *Node, indent string, depth int, encoder
 		return []string{here}
 	}
 
-	// recurse on inner node
-	here := fmt.Sprintf("%s%s", prefix, encoder(node.hash, depth, false))
-	left := t.renderNode(node.getLeftNode(t), indent, depth+1, encoder)
-	right := t.renderNode(node.getRightNode(t), indent, depth+1, encoder)
-	result := append(left, here)
-	result = append(result, right...)
+	// left
+	result := t.renderNode(node.getLeftNode(t), indent, depth+1, encoder)
+	// here
+	result = append(result, fmt.Sprintf("%s%s", prefix, encoder(node.hash, depth, false)))
+	// right
+	result = append(result, t.renderNode(node.getRightNode(t), indent, depth+1, encoder)...)
 	return result
 }
 
@@ -227,9 +227,8 @@ func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) bool {
 func (t *ImmutableTree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	if t.IsFastCacheEnabled() {
 		return NewFastIterator(start, end, ascending, t.ndb)
-	} else {
-		return NewIterator(start, end, ascending, t)
 	}
+	return NewIterator(start, end, ascending, t)
 }
 
 // IterateRange makes a callback for all nodes with key between start and end non-inclusive.

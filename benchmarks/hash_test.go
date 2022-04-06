@@ -1,4 +1,4 @@
-// nolint: errcheck,scopelint
+// nolint: scopelint
 package benchmarks
 
 import (

@@ -150,12 +150,12 @@ func Test_Cache_Add(t *testing.T) {
 		},
 	}
 
-	for name, tc := range testcases {
+	for name, testcase := range testcases {
+		tc := testcase
 		t.Run(name, func(t *testing.T) {
 			cache := cache.New(tc.cacheLimit)
 
 			expectedCurSize := 0
-
 			for _, op := range tc.cacheOps {
 
 				actualResult := cache.Add(testNodes[op.testNodexIdx])
@@ -259,7 +259,8 @@ func Test_Cache_Remove(t *testing.T) {
 		},
 	}
 
-	for name, tc := range testcases {
+	for name, testcase := range testcases {
+		tc := testcase
 		t.Run(name, func(t *testing.T) {
 			cache := cache.New(tc.cacheLimit)
 
@@ -305,7 +306,8 @@ func randBytes(length int) []byte {
 	key := make([]byte, length)
 	// math.rand.Read always returns err=nil
 	// we do not need cryptographic randomness for this test:
-	//nolint:gosec
+
+	// nolint: errcheck
 	rand.Read(key)
 	return key
 }
