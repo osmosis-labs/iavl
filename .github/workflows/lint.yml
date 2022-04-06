@@ -9,7 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
-      - uses: golangci/golangci-lint-action@3
+      - uses: golangci/golangci-lint-action@2
         with:
+          version: v3.1.0
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
