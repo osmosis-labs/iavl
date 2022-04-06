@@ -706,6 +706,7 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 	if err := ndb.batch.Delete(ndb.rootKey(version)); err != nil {
 		return err
 	}
+
 	return nil
 }
 
