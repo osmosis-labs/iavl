@@ -9,7 +9,12 @@ import (
 
 type lruCacheWithBytesLimit struct {
 	lruCache
-	bytesLimit       int
+	bytesLimit int
+	// This is called an estimate because we calculcate the number of bytes used based on the
+	// knowledge of how the underlying structs, slices and strings are represented in Go.
+	// Since Go is a garbage collected language, there is no good way to retrieve the exact number
+	// of bytes used by both the stack and the heap at any particular moment. As a result, this
+	// is named an estimate to reflect that it is not a precise number.
 	curBytesEstimate int
 }
 
