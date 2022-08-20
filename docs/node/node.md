@@ -34,27 +34,27 @@ Every node is persisted by encoding the key, version, height, size and hash. If 
 ```golang
 // Writes the node as a serialized byte slice to the supplied io.Writer.
 func (node *Node) writeBytes(w io.Writer) error {
-	cause := encodeVarint(w, node.height)
+	cause := utils.EncodeVarint(w, node.height)
 	if cause != nil {
 		return errors.Wrap(cause, "writing height")
 	}
-	cause = encodeVarint(w, node.size)
+	cause = utils.EncodeVarint(w, node.size)
 	if cause != nil {
 		return errors.Wrap(cause, "writing size")
 	}
-	cause = encodeVarint(w, node.version)
+	cause = utils.EncodeVarint(w, node.version)
 	if cause != nil {
 		return errors.Wrap(cause, "writing version")
 	}
 
 	// Unlike writeHashBytes, key is written for inner nodes.
-	cause = encodeBytes(w, node.key)
+	cause = utils.EncodeBytes(w, node.key)
 	if cause != nil {
 		return errors.Wrap(cause, "writing key")
 	}
 
 	if node.isLeaf() {
-		cause = encodeBytes(w, node.value)
+		cause = utils.EncodeBytes(w, node.value)
 		if cause != nil {
 			return errors.Wrap(cause, "writing value")
 		}
@@ -62,7 +62,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		if node.leftHash == nil {
 			panic("node.leftHash was nil in writeBytes")
 		}
-		cause = encodeBytes(w, node.leftHash)
+		cause = utils.EncodeBytes(w, node.leftHash)
 		if cause != nil {
 			return errors.Wrap(cause, "writing left hash")
 		}
@@ -70,7 +70,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		if node.rightHash == nil {
 			panic("node.rightHash was nil in writeBytes")
 		}
-		cause = encodeBytes(w, node.rightHash)
+		cause = utils.EncodeBytes(w, node.rightHash)
 		if cause != nil {
 			return errors.Wrap(cause, "writing right hash")
 		}
@@ -87,15 +87,15 @@ A node's hash is calculated by hashing the height, size, and version of the node
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := encodeVarint(w, node.height)
+	err := utils.EncodeVarint(w, node.height)
 	if err != nil {
 		return errors.Wrap(err, "writing height")
 	}
-	err = encodeVarint(w, node.size)
+	err = utils.EncodeVarint(w, node.size)
 	if err != nil {
 		return errors.Wrap(err, "writing size")
 	}
-	err = encodeVarint(w, node.version)
+	err = utils.EncodeVarint(w, node.version)
 	if err != nil {
 		return errors.Wrap(err, "writing version")
 	}
@@ -103,14 +103,14 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 	// Key is not written for inner nodes, unlike writeBytes.
 
 	if node.isLeaf() {
-		err = encodeBytes(w, node.key)
+		err = utils.EncodeBytes(w, node.key)
 		if err != nil {
 			return errors.Wrap(err, "writing key")
 		}
 		// Indirection needed to provide proofs without values.
 		// (e.g. proofLeafNode.ValueHash)
 		valueHash := tmhash.Sum(node.value)
-		err = encodeBytes(w, valueHash)
+		err = utils.EncodeBytes(w, valueHash)
 		if err != nil {
 			return errors.Wrap(err, "writing value")
 		}
@@ -118,11 +118,11 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 		if node.leftHash == nil || node.rightHash == nil {
 			panic("Found an empty child hash")
 		}
-		err = encodeBytes(w, node.leftHash)
+		err = utils.EncodeBytes(w, node.leftHash)
 		if err != nil {
 			return errors.Wrap(err, "writing left hash")
 		}
-		err = encodeBytes(w, node.rightHash)
+		err = utils.EncodeBytes(w, node.rightHash)
 		if err != nil {
 			return errors.Wrap(err, "writing right hash")
 		}

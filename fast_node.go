@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/utils"
 	"github.com/pkg/errors"
 )
 
@@ -29,13 +30,13 @@ func NewFastNode(key []byte, value []byte, version int64) *FastNode {
 
 // DeserializeFastNode constructs an *FastNode from an encoded byte slice.
 func DeserializeFastNode(key []byte, buf []byte) (*FastNode, error) {
-	ver, n, cause := decodeVarint(buf)
+	ver, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.version")
 	}
 	buf = buf[n:]
 
-	val, _, cause := decodeBytes(buf)
+	val, _, cause := utils.DecodeBytes(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding fastnode.value")
 	}
@@ -54,7 +55,7 @@ func (fn *FastNode) GetKey() []byte {
 }
 
 func (node *FastNode) encodedSize() int {
-	n := encodeVarintSize(node.versionLastUpdatedAt) + encodeBytesSize(node.value)
+	n := utils.EncodeVarintSize(node.versionLastUpdatedAt) + utils.EncodeBytesSize(node.value)
 	return n
 }
 
@@ -63,11 +64,11 @@ func (node *FastNode) writeBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
-	cause := encodeVarint(w, node.versionLastUpdatedAt)
+	cause := utils.EncodeVarint(w, node.versionLastUpdatedAt)
 	if cause != nil {
 		return errors.Wrap(cause, "writing version last updated at")
 	}
-	cause = encodeBytes(w, node.value)
+	cause = utils.EncodeBytes(w, node.value)
 	if cause != nil {
 		return errors.Wrap(cause, "writing value")
 	}

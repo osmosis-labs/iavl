@@ -11,6 +11,7 @@ import (
 	"math/rand"
 
 	cmn "github.com/cosmos/iavl/common"
+	"github.com/cosmos/iavl/utils"
 	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -27,12 +28,12 @@ func randstr(length int) string {
 
 func i2b(i int) []byte {
 	buf := new(bytes.Buffer)
-	encodeVarint(buf, int64(i))
+	utils.EncodeVarint(buf, int64(i))
 	return buf.Bytes()
 }
 
 func b2i(bz []byte) int {
-	i, _, err := decodeVarint(bz)
+	i, _, err := utils.DecodeVarint(bz)
 	if err != nil {
 		panic(err)
 	}

@@ -10,6 +10,7 @@ import (
 
 	cmn "github.com/cosmos/iavl/common"
 	iavlproto "github.com/cosmos/iavl/proto"
+	"github.com/cosmos/iavl/utils"
 )
 
 var (
@@ -57,27 +58,27 @@ func (pin ProofInnerNode) Hash(childHash []byte) []byte {
 	hasher := sha256.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, int64(pin.Height))
+	err := utils.EncodeVarint(buf, int64(pin.Height))
 	if err == nil {
-		err = encodeVarint(buf, pin.Size)
+		err = utils.EncodeVarint(buf, pin.Size)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pin.Version)
+		err = utils.EncodeVarint(buf, pin.Version)
 	}
 
 	if len(pin.Left) == 0 {
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = utils.EncodeBytes(buf, childHash)
 		}
 		if err == nil {
-			err = encodeBytes(buf, pin.Right)
+			err = utils.EncodeBytes(buf, pin.Right)
 		}
 	} else {
 		if err == nil {
-			err = encodeBytes(buf, pin.Left)
+			err = utils.EncodeBytes(buf, pin.Left)
 		}
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = utils.EncodeBytes(buf, childHash)
 		}
 	}
 	if err != nil {
@@ -147,18 +148,18 @@ func (pln ProofLeafNode) Hash() []byte {
 	hasher := sha256.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, 0)
+	err := utils.EncodeVarint(buf, 0)
 	if err == nil {
-		err = encodeVarint(buf, 1)
+		err = utils.EncodeVarint(buf, 1)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pln.Version)
+		err = utils.EncodeVarint(buf, pln.Version)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.Key)
+		err = utils.EncodeBytes(buf, pln.Key)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.ValueHash)
+		err = utils.EncodeBytes(buf, pln.ValueHash)
 	}
 	if err != nil {
 		panic(fmt.Sprintf("Failed to hash ProofLeafNode: %v", err))

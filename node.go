@@ -11,6 +11,7 @@ import (
 	"math"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/utils"
 	"github.com/pkg/errors"
 )
 
@@ -49,7 +50,7 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 func MakeNode(buf []byte) (*Node, error) {
 
 	// Read node header (height, size, version, key).
-	height, n, cause := decodeVarint(buf)
+	height, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.height")
 	}
@@ -58,19 +59,19 @@ func MakeNode(buf []byte) (*Node, error) {
 		return nil, errors.New("invalid height, must be int8")
 	}
 
-	size, n, cause := decodeVarint(buf)
+	size, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.size")
 	}
 	buf = buf[n:]
 
-	ver, n, cause := decodeVarint(buf)
+	ver, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.version")
 	}
 	buf = buf[n:]
 
-	key, n, cause := decodeBytes(buf)
+	key, n, cause := utils.DecodeBytes(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.key")
 	}
@@ -86,19 +87,19 @@ func MakeNode(buf []byte) (*Node, error) {
 	// Read node body.
 
 	if node.isLeaf() {
-		val, _, cause := decodeBytes(buf)
+		val, _, cause := utils.DecodeBytes(buf)
 		if cause != nil {
 			return nil, errors.Wrap(cause, "decoding node.value")
 		}
 		node.value = val
 	} else { // Read children.
-		leftHash, n, cause := decodeBytes(buf)
+		leftHash, n, cause := utils.DecodeBytes(buf)
 		if cause != nil {
 			return nil, errors.Wrap(cause, "deocding node.leftHash")
 		}
 		buf = buf[n:]
 
-		rightHash, _, cause := decodeBytes(buf)
+		rightHash, _, cause := utils.DecodeBytes(buf)
 		if cause != nil {
 			return nil, errors.Wrap(cause, "decoding node.rightHash")
 		}
@@ -297,15 +298,15 @@ func (node *Node) validate() error {
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := encodeVarint(w, int64(node.height))
+	err := utils.EncodeVarint(w, int64(node.height))
 	if err != nil {
 		return errors.Wrap(err, "writing height")
 	}
-	err = encodeVarint(w, node.size)
+	err = utils.EncodeVarint(w, node.size)
 	if err != nil {
 		return errors.Wrap(err, "writing size")
 	}
-	err = encodeVarint(w, node.version)
+	err = utils.EncodeVarint(w, node.version)
 	if err != nil {
 		return errors.Wrap(err, "writing version")
 	}
@@ -313,7 +314,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 	// Key is not written for inner nodes, unlike writeBytes.
 
 	if node.isLeaf() {
-		err = encodeBytes(w, node.key)
+		err = utils.EncodeBytes(w, node.key)
 		if err != nil {
 			return errors.Wrap(err, "writing key")
 		}
@@ -322,7 +323,7 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 		// (e.g. ProofLeafNode.ValueHash)
 		valueHash := sha256.Sum256(node.value)
 
-		err = encodeBytes(w, valueHash[:])
+		err = utils.EncodeBytes(w, valueHash[:])
 		if err != nil {
 			return errors.Wrap(err, "writing value")
 		}
@@ -330,11 +331,11 @@ func (node *Node) writeHashBytes(w io.Writer) error {
 		if node.leftHash == nil || node.rightHash == nil {
 			panic("Found an empty child hash")
 		}
-		err = encodeBytes(w, node.leftHash)
+		err = utils.EncodeBytes(w, node.leftHash)
 		if err != nil {
 			return errors.Wrap(err, "writing left hash")
 		}
-		err = encodeBytes(w, node.rightHash)
+		err = utils.EncodeBytes(w, node.rightHash)
 		if err != nil {
 			return errors.Wrap(err, "writing right hash")
 		}
@@ -363,14 +364,14 @@ func (node *Node) writeHashBytesRecursively(w io.Writer) (hashCount int64, err e
 
 func (node *Node) encodedSize() int {
 	n := 1 +
-		encodeVarintSize(node.size) +
-		encodeVarintSize(node.version) +
-		encodeBytesSize(node.key)
+		utils.EncodeVarintSize(node.size) +
+		utils.EncodeVarintSize(node.version) +
+		utils.EncodeBytesSize(node.key)
 	if node.isLeaf() {
-		n += encodeBytesSize(node.value)
+		n += utils.EncodeBytesSize(node.value)
 	} else {
-		n += encodeBytesSize(node.leftHash) +
-			encodeBytesSize(node.rightHash)
+		n += utils.EncodeBytesSize(node.leftHash) +
+			utils.EncodeBytesSize(node.rightHash)
 	}
 	return n
 }
@@ -380,27 +381,27 @@ func (node *Node) writeBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
-	cause := encodeVarint(w, int64(node.height))
+	cause := utils.EncodeVarint(w, int64(node.height))
 	if cause != nil {
 		return errors.Wrap(cause, "writing height")
 	}
-	cause = encodeVarint(w, node.size)
+	cause = utils.EncodeVarint(w, node.size)
 	if cause != nil {
 		return errors.Wrap(cause, "writing size")
 	}
-	cause = encodeVarint(w, node.version)
+	cause = utils.EncodeVarint(w, node.version)
 	if cause != nil {
 		return errors.Wrap(cause, "writing version")
 	}
 
 	// Unlike writeHashBytes, key is written for inner nodes.
-	cause = encodeBytes(w, node.key)
+	cause = utils.EncodeBytes(w, node.key)
 	if cause != nil {
 		return errors.Wrap(cause, "writing key")
 	}
 
 	if node.isLeaf() {
-		cause = encodeBytes(w, node.value)
+		cause = utils.EncodeBytes(w, node.value)
 		if cause != nil {
 			return errors.Wrap(cause, "writing value")
 		}
@@ -408,7 +409,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		if node.leftHash == nil {
 			panic("node.leftHash was nil in writeBytes")
 		}
-		cause = encodeBytes(w, node.leftHash)
+		cause = utils.EncodeBytes(w, node.leftHash)
 		if cause != nil {
 			return errors.Wrap(cause, "writing left hash")
 		}
@@ -416,7 +417,7 @@ func (node *Node) writeBytes(w io.Writer) error {
 		if node.rightHash == nil {
 			panic("node.rightHash was nil in writeBytes")
 		}
-		cause = encodeBytes(w, node.rightHash)
+		cause = utils.EncodeBytes(w, node.rightHash)
 		if cause != nil {
 			return errors.Wrap(cause, "writing right hash")
 		}
