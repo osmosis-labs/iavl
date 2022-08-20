@@ -14,7 +14,7 @@ type ImmutableTree struct {
 
 Using the root and the nodeDB, the ImmutableTree can retrieve any node that is a part of the IAVL tree at this version.
 
-Users can get information about the IAVL tree by calling getter functions such as `Size()` and `Height()` which will return the tree's size and height by querying the root node's size and height.
+Users can get information about the IAVL tree by calling getter functions such as `Size()` and `Height()` which will return the tree's size and depth by querying the root node's size and depth.
 
 ### Get
 

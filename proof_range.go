@@ -444,7 +444,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 					pathCount = -1
 				} else {
 					pn := path[pathCount]
-					if pn.Height != node.height ||
+					if pn.Height != node.depth ||
 						pn.Left != nil && !bytes.Equal(pn.Left, node.leftHash) ||
 						pn.Right != nil && !bytes.Equal(pn.Right, node.rightHash) {
 
@@ -456,7 +456,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				}
 			}
 
-			if node.height == 0 { // Leaf node
+			if node.depth == 0 { // Leaf node
 				// Append all paths that we tracked so far to get to this leaf node.
 				allPathToLeafs = append(allPathToLeafs, currentPathToLeaf)
 				// Start a new one to track as we traverse the tree.
@@ -499,7 +499,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				// and don't need to store unnecessary info as we only need to go down the right
 				// path.
 				currentPathToLeaf = append(currentPathToLeaf, ProofInnerNode{
-					Height:  node.height,
+					Height:  node.depth,
 					Size:    node.size,
 					Version: node.version,
 					Left:    nil,

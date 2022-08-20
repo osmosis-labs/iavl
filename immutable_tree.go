@@ -109,12 +109,12 @@ func (t *ImmutableTree) Version() int64 {
 	return t.version
 }
 
-// Height returns the height of the tree.
+// Height returns the depth of the tree.
 func (t *ImmutableTree) Height() int8 {
 	if t.root == nil {
 		return 0
 	}
-	return t.root.height
+	return t.root.depth
 }
 
 // Has returns whether or not a key exists.
@@ -240,7 +240,7 @@ func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(
 		return false
 	}
 	return t.root.traverseInRange(t, start, end, ascending, false, false, func(node *Node) bool {
-		if node.height == 0 {
+		if node.depth == 0 {
 			return fn(node.key, node.value)
 		}
 		return false
@@ -255,7 +255,7 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 		return false
 	}
 	return t.root.traverseInRange(t, start, end, ascending, true, false, func(node *Node) bool {
-		if node.height == 0 {
+		if node.depth == 0 {
 			return fn(node.key, node.value, node.version)
 		}
 		return false

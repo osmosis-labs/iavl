@@ -40,7 +40,7 @@ newNode := NewNode(key, value, newVersion)
 // original leaf node: originalLeaf gets replaced by inner node below
 Node{
     key:       setKey,       // inner node key is equal to left child's key
-    height:    1,            // height=1 since node is parent of leaves
+    depth:    1,            // depth=1 since node is parent of leaves
     size:      2,            // 2 leaf nodes under this node
     leftNode:  newNode,      // left Node is the new added leaf node
     rightNode: originalLeaf, // right Node is the original leaf node
@@ -59,7 +59,7 @@ newNode := NewNode(key, value, latestVersion+1)
 // original leaf node: originalLeaf gets replaced by inner node below
 Node{
     key:       leafKey,      // inner node key is equal to left child's key
-    height:    1,            // height=1 since node is parent of leaves
+    depth:    1,            // depth=1 since node is parent of leaves
     size:      2,            // 2 leaf nodes under this node
     leftNode:  originalLeaf, // left Node is the original leaf node
     rightNode: newNode,      // right Node  is the new added leaf node
@@ -69,7 +69,7 @@ Node{
 
 Any node that gets recursed upon during a Set call is necessarily orphaned since it will either have a new value (in the case of an update) or it will have a new descendant. The recursive calls accumulate a list of orphans as it descends down the IAVL tree. This list of orphans is ultimately added to the mutable tree's orphan list at the end of the Set call.
 
-After each set, the current working tree has its height and size recalculated. If the height of the left branch and right branch of the working tree differs by more than one, then the mutable tree has to be balanced before the Set call can return.
+After each set, the current working tree has its depth and size recalculated. If the depth of the left branch and right branch of the working tree differs by more than one, then the mutable tree has to be balanced before the Set call can return.
 
 ### Remove
 
@@ -111,11 +111,11 @@ ReplaceNode = RightLeaf
 orphaned = [LeftLeaf, recurseNode]
 ```
 
-If recurseNode is an inner node that got called in the recursiveRemove, but is not a direct parent of the removed leaf. Then an updated version of the node will exist in the tree. Notably, it will have an incremented version, a new hash (as explained in the `NewHash` section), and recalculated height and size.
+If recurseNode is an inner node that got called in the recursiveRemove, but is not a direct parent of the removed leaf. Then an updated version of the node will exist in the tree. Notably, it will have an incremented version, a new hash (as explained in the `NewHash` section), and recalculated depth and size.
 
 The ReplaceNode will be a cloned version of `recurseNode` with an incremented version. The hash will be updated given the NewHash of recurseNode's left child or right child (depending on which branch got recurse upon).
 
-The height and size of the ReplaceNode will have to be calculated since these values can change after the `remove`.
+The depth and size of the ReplaceNode will have to be calculated since these values can change after the `remove`.
 
 It's possible that the subtree for `ReplaceNode` will have to be rebalanced (see `Balance` section). If this is the case, this will also update `ReplaceNode`'s hash since the structure of `ReplaceNode`'s subtree will change.
 
@@ -145,9 +145,9 @@ If the `removeKey` does not exist in the IAVL tree, then the orphans list is `ni
 
 ### Balance
 
-Anytime a node is unbalanced such that the height of its left branch and the height of its right branch differs by more than 1, the IAVL tree will rebalance itself.
+Anytime a node is unbalanced such that the depth of its left branch and the depth of its right branch differs by more than 1, the IAVL tree will rebalance itself.
 
-This is acheived by rotating the subtrees until there is no more than one height difference between two branches of any subtree in the IAVL.
+This is acheived by rotating the subtrees until there is no more than one depth difference between two branches of any subtree in the IAVL.
 
 Since Balance is mutating the structure of the tree, any displaced nodes will be orphaned.
 

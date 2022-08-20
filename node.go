@@ -17,16 +17,19 @@ import (
 
 // Node represents a node in a Tree.
 type Node struct {
+	// TODO: Change key to path
 	key       []byte
 	value     []byte
 	hash      []byte
 	leftHash  []byte
 	rightHash []byte
+	// TODO: Add here leftVersion, rightVersion, and then we change child discovery in db to use that.
 	version   int64
 	size      int64
 	leftNode  *Node
 	rightNode *Node
-	height    int8
+	// TODO: Delete depth. should become derived off len(path)
+	depth     int8
 	persisted bool
 }
 
@@ -37,7 +40,7 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 	return &Node{
 		key:     key,
 		value:   value,
-		height:  0,
+		depth:   0,
 		size:    1,
 		version: version,
 	}
@@ -49,14 +52,14 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 // afterwards.
 func MakeNode(buf []byte) (*Node, error) {
 
-	// Read node header (height, size, version, key).
-	height, n, cause := utils.DecodeVarint(buf)
+	// Read node header (depth, size, version, key).
+	depth, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
-		return nil, errors.Wrap(cause, "decoding node.height")
+		return nil, errors.Wrap(cause, "decoding node.depth")
 	}
 	buf = buf[n:]
-	if height < int64(math.MinInt8) || height > int64(math.MaxInt8) {
-		return nil, errors.New("invalid height, must be int8")
+	if depth < int64(math.MinInt8) || depth > int64(math.MaxInt8) {
+		return nil, errors.New("invalid depth, must be int8")
 	}
 
 	size, n, cause := utils.DecodeVarint(buf)
@@ -78,7 +81,7 @@ func MakeNode(buf []byte) (*Node, error) {
 	buf = buf[n:]
 
 	node := &Node{
-		height:  int8(height),
+		depth:   int8(depth),
 		size:    size,
 		version: ver,
 		key:     key,
@@ -134,7 +137,7 @@ func (node *Node) clone(version int64) *Node {
 	}
 	return &Node{
 		key:       node.key,
-		height:    node.height,
+		depth:     node.depth,
 		version:   version,
 		size:      node.size,
 		hash:      nil,
@@ -147,7 +150,7 @@ func (node *Node) clone(version int64) *Node {
 }
 
 func (node *Node) isLeaf() bool {
-	return node.height == 0
+	return node.depth == 0
 }
 
 // Check if the node has a descendant with the given key.
@@ -265,14 +268,14 @@ func (node *Node) validate() error {
 	if node.version <= 0 {
 		return errors.New("version must be greater than 0")
 	}
-	if node.height < 0 {
-		return errors.New("height cannot be less than 0")
+	if node.depth < 0 {
+		return errors.New("depth cannot be less than 0")
 	}
 	if node.size < 1 {
 		return errors.New("size must be at least 1")
 	}
 
-	if node.height == 0 {
+	if node.depth == 0 {
 		// Leaf nodes
 		if node.value == nil {
 			return errors.New("value cannot be nil for leaf node")
@@ -298,9 +301,9 @@ func (node *Node) validate() error {
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := utils.EncodeVarint(w, int64(node.height))
+	err := utils.EncodeVarint(w, int64(node.depth))
 	if err != nil {
-		return errors.Wrap(err, "writing height")
+		return errors.Wrap(err, "writing depth")
 	}
 	err = utils.EncodeVarint(w, node.size)
 	if err != nil {
@@ -381,9 +384,9 @@ func (node *Node) writeBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
-	cause := utils.EncodeVarint(w, int64(node.height))
+	cause := utils.EncodeVarint(w, int64(node.depth))
 	if cause != nil {
-		return errors.Wrap(cause, "writing height")
+		return errors.Wrap(cause, "writing depth")
 	}
 	cause = utils.EncodeVarint(w, node.size)
 	if cause != nil {
@@ -439,14 +442,14 @@ func (node *Node) getRightNode(t *ImmutableTree) *Node {
 	return t.ndb.GetNode(node.rightHash)
 }
 
-// NOTE: mutates height and size
+// NOTE: mutates depth and size
 func (node *Node) calcHeightAndSize(t *ImmutableTree) {
-	node.height = maxInt8(node.getLeftNode(t).height, node.getRightNode(t).height) + 1
+	node.depth = maxInt8(node.getLeftNode(t).depth, node.getRightNode(t).depth) + 1
 	node.size = node.getLeftNode(t).size + node.getRightNode(t).size
 }
 
 func (node *Node) calcBalance(t *ImmutableTree) int {
-	return int(node.getLeftNode(t).height) - int(node.getRightNode(t).height)
+	return int(node.getLeftNode(t).depth) - int(node.getRightNode(t).depth)
 }
 
 // traverse is a wrapper over traverseInRange when we want the whole tree

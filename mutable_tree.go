@@ -216,7 +216,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 		case -1:
 			return &Node{
 				key:       node.key,
-				height:    1,
+				depth:     1,
 				size:      2,
 				leftNode:  NewNode(key, value, version),
 				rightNode: node,
@@ -225,7 +225,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 		case 1:
 			return &Node{
 				key:       key,
-				height:    1,
+				depth:     1,
 				size:      2,
 				leftNode:  node,
 				rightNode: NewNode(key, value, version),

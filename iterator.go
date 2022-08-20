@@ -220,7 +220,7 @@ func (iter *Iterator) Next() {
 		return
 	}
 
-	if node.height == 0 {
+	if node.depth == 0 {
 		iter.key, iter.value = node.key, node.value
 		return
 	}

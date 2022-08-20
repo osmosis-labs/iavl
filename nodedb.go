@@ -952,12 +952,12 @@ func (ndb *nodeDB) String() (string, error) {
 			str += "<nil>\n"
 		case node == nil:
 			str += fmt.Sprintf("%s%40x: <nil>\n", nodeKeyFormat.Prefix(), hash)
-		case node.value == nil && node.height > 0:
+		case node.value == nil && node.depth > 0:
 			str += fmt.Sprintf("%s%40x: %s   %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, "", node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.key, "", node.depth, node.version)
 		default:
 			str += fmt.Sprintf("%s%40x: %s = %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, node.value, node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.key, node.value, node.depth, node.version)
 		}
 		index++
 		return nil

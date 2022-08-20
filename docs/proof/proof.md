@@ -25,7 +25,7 @@ In reality, IAVL nodes contain more data than shown here - for details please re
 overview.
 
 A cryptographically secure hash is generated for each node in the tree by hashing the node's key
-and value (if leaf node), version, and height, as well as the hashes of each direct child (if
+and value (if leaf node), version, and depth, as well as the hashes of each direct child (if
 any). This implies that the hash of any given node also depends on the hashes of all descendants
 of the node. In turn, this implies that the hash of the root node depends on the hashes of all
 nodes (and therefore all data) in the tree.
@@ -314,7 +314,7 @@ Where `ProofInnerNode` contains the following data (a subset of the [node data](
 
 ```go
 type ProofInnerNode struct {
-	Height  int8   `json:"height"`
+	Height  int8   `json:"depth"`
 	Size    int64  `json:"size"`
 	Version int64  `json:"version"`
 	Left    []byte `json:"left"`
