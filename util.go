@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+var (
+	debugging = false
+)
+
+func debug(format string, args ...interface{}) {
+	if debugging {
+		fmt.Printf(format, args...)
+	}
+}
+
 // PrintTree prints the whole tree in an indented form.
 func PrintTree(tree *ImmutableTree) {
 	ndb, root := tree.ndb, tree.root
