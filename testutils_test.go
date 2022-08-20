@@ -45,6 +45,14 @@ func getTestTree(cacheSize int) (*MutableTree, error) {
 	return NewMutableTreeWithOpts(dbm.NewMemDB(), cacheSize, nil)
 }
 
+// Only used in testing...
+func lmd(t *ImmutableTree, node *Node) *Node {
+	if node.isLeaf() {
+		return node
+	}
+	return lmd(t, t.getLeftChild(node))
+}
+
 // Convenience for a new node
 func N(l, r interface{}) *Node {
 	var left, right *Node
@@ -60,7 +68,7 @@ func N(l, r interface{}) *Node {
 	}
 
 	n := &Node{
-		key:       right.lmd(nil).key,
+		key:       lmd(nil, right).key,
 		value:     nil,
 		leftNode:  left,
 		rightNode: right,

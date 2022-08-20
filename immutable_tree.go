@@ -202,7 +202,7 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 		return nil, nil
 	}
 
-	return t.root.getByIndex(t, index)
+	return t.getByIndexRecursive(t.root, index)
 }
 
 // Iterate iterates over all keys of the tree. The keys and values must not be modified,
@@ -306,4 +306,21 @@ func (t *ImmutableTree) getRightChild(node *Node) *Node {
 		return node.rightNode
 	}
 	return t.ndb.GetNode(node.rightHash)
+}
+
+func (t *ImmutableTree) getByIndexRecursive(node *Node, index int64) (key []byte, value []byte) {
+	if node.isLeaf() {
+		if index == 0 {
+			return node.key, node.value
+		}
+		return nil, nil
+	}
+	// TODO: could improve this by storing the
+	// sizes as well as left/right hash.
+	leftNode := t.getLeftChild(node)
+
+	if index < leftNode.size {
+		return t.getByIndexRecursive(leftNode, index)
+	}
+	return t.getByIndexRecursive(t.getRightChild(node), index-leftNode.size)
 }
