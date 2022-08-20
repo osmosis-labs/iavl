@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/utils"
 	"github.com/pkg/errors"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -662,17 +663,17 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 
 // Traverse orphans and return error if any, nil otherwise
 func (ndb *nodeDB) traverseOrphans(fn func(keyWithPrefix, v []byte) error) error {
-	return ndb.traversePrefix(orphanKeyFormat.Key(), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, orphanKeyFormat.Key(), fn)
 }
 
 // Traverse fast nodes and return error if any, nil otherwise
 func (ndb *nodeDB) traverseFastNodes(fn func(k, v []byte) error) error {
-	return ndb.traversePrefix(fastKeyFormat.Key(), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, fastKeyFormat.Key(), fn)
 }
 
 // Traverse orphans ending at a certain version. return error if any, nil otherwise
 func (ndb *nodeDB) traverseOrphansVersion(version int64, fn func(k, v []byte) error) error {
-	return ndb.traversePrefix(orphanKeyFormat.Key(version), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, orphanKeyFormat.Key(version), fn)
 }
 
 // Traverse all keys and return error if any, nil otherwise
@@ -696,23 +697,6 @@ func (ndb *nodeDB) traverseRange(start []byte, end []byte, fn func(k, v []byte) 
 
 	if err := itr.Error(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// Traverse all keys with a certain prefix. Return error if any, nil otherwise
-func (ndb *nodeDB) traversePrefix(prefix []byte, fn func(k, v []byte) error) error {
-	itr, err := dbm.IteratePrefix(ndb.db, prefix)
-	if err != nil {
-		return err
-	}
-	defer itr.Close()
-
-	for ; itr.Valid(); itr.Next() {
-		if err := fn(itr.Key(), itr.Value()); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -775,12 +759,15 @@ func (ndb *nodeDB) getRoot(version int64) ([]byte, error) {
 func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 	roots := map[int64][]byte{}
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(k, v []byte) error {
 		var version int64
 		rootKeyFormat.Scan(k, &version)
 		roots[version] = v
 		return nil
 	})
+	if err != nil {
+		return map[int64][]byte{}, nil
+	}
 	return roots, nil
 }
 
@@ -899,7 +886,7 @@ func (ndb *nodeDB) size() int {
 func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *Node) error) error {
 	nodes := []*Node{}
 
-	err := ndb.traversePrefix(nodeKeyFormat.Key(), func(key, value []byte) error {
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, nodeKeyFormat.Key(), func(key, value []byte) error {
 		node, err := MakeNode(value)
 		if err != nil {
 			return err
@@ -929,7 +916,7 @@ func (ndb *nodeDB) String() (string, error) {
 	var str string
 	index := 0
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
+	utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})

@@ -201,14 +201,14 @@ func proofLeafNodeFromProto(pbLeaf *iavlproto.ProofLeafNode) (ProofLeafNode, err
 // a path to the least item.
 func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, error) {
 	path := new(PathToLeaf)
-	val, err := node.pathToLeaf(t, key, path)
+	val, err := node.pathToLeafRecursive(t, key, path)
 	return *path, val, err
 }
 
 // pathToLeaf is a helper which recursively constructs the PathToLeaf.
 // As an optimization the already constructed path is passed in as an argument
 // and is shared among recursive calls.
-func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
+func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
 	if node.depth == 0 {
 		if bytes.Equal(node.key, key) {
 			return node, nil
@@ -230,7 +230,7 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 			Right:   node.getRightNode(t).hash,
 		}
 		*path = append(*path, pin)
-		n, err := node.getLeftNode(t).pathToLeaf(t, key, path)
+		n, err := node.getLeftNode(t).pathToLeafRecursive(t, key, path)
 		return n, err
 	}
 	// right side
@@ -242,6 +242,6 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 		Right:   nil,
 	}
 	*path = append(*path, pin)
-	n, err := node.getRightNode(t).pathToLeaf(t, key, path)
+	n, err := node.getRightNode(t).pathToLeafRecursive(t, key, path)
 	return n, err
 }
