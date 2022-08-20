@@ -97,7 +97,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %x", hash, getNodeKey(hash)))
 	}
 
-	node, err := MakeNode(buf)
+	node, err := DeserializeNode(buf)
 	if err != nil {
 		panic(fmt.Sprintf("Error reading Node. bytes: %x, error: %v", buf, err))
 	}
@@ -278,10 +278,13 @@ func (ndb *nodeDB) Has(hash []byte) (bool, error) {
 	return value != nil, nil
 }
 
-// SaveBranch saves the given node and all of its descendants.
-// NOTE: This function clears leftNode/rigthNode recursively and
-// calls _hash() on the given node.
-// TODO refactor, maybe use hashWithCount() but provide a callback.
+// SaveBranch recursively saves all updated descendants of a node.
+// then it computes its hash.
+// A descendant is tracked for whether or not its updated, based on if
+// node.persisted is true.
+// TODO: Make better static guarantee in tree,
+// for what nodes exist in deserialized memory, and just not getting extra nodes
+// and a clear decision criteria between "no branch node", "new branch with as of yet unknown hash"
 func (ndb *nodeDB) SaveBranch(node *Node) []byte {
 	if node.persisted {
 		return node.hash
@@ -298,9 +301,11 @@ func (ndb *nodeDB) SaveBranch(node *Node) []byte {
 	ndb.SaveNode(node)
 
 	// resetBatch only working on generate a genesis block
+	// TODO: What is this?
 	if node.version <= genesisVersion {
 		ndb.resetBatch()
 	}
+	// TODO: This should be deletable? Is it just here for garbage collection purposes?
 	node.leftNode = nil
 	node.rightNode = nil
 
@@ -704,7 +709,7 @@ func (ndb *nodeDB) traverseRange(start []byte, end []byte, fn func(k, v []byte) 
 
 // Get iterator for fast prefix and error, if any
 func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
-	var startFormatted, endFormatted []byte = nil, nil
+	var startFormatted, endFormatted []byte
 
 	if start != nil {
 		startFormatted = fastKeyFormat.KeyBytes(start)
@@ -887,7 +892,7 @@ func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *Node) error) error {
 	nodes := []*Node{}
 
 	err := utils.IterateThroughAllSubtreeKeys(ndb.db, nodeKeyFormat.Key(), func(key, value []byte) error {
-		node, err := MakeNode(value)
+		node, err := DeserializeNode(value)
 		if err != nil {
 			return err
 		}

@@ -69,7 +69,7 @@ func TestNode_encode_decode(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expectHex, hex.EncodeToString(buf.Bytes()))
 
-			node, err := MakeNode(buf.Bytes())
+			node, err := DeserializeNode(buf.Bytes())
 			require.NoError(t, err)
 			// since key and value is always decoded to []byte{} we augment the expected struct here
 			if tc.node.key == nil {

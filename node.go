@@ -46,12 +46,11 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 	}
 }
 
-// MakeNode constructs an *Node from an encoded byte slice.
+// DeserializeNode constructs an *Node from a serialized byte slice.
 //
-// The new node doesn't have its hash saved or set. The caller must set it
-// afterwards.
-func MakeNode(buf []byte) (*Node, error) {
-
+// The new node doesn't have its hash saved or set, as in the current IAVL schema it is not serialized within the node.
+// The caller must set it afterwards. (NOTE: It is easily derivable, via just running the hash of data in the node)
+func DeserializeNode(buf []byte) (*Node, error) {
 	// Read node header (depth, size, version, key).
 	depth, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
@@ -192,23 +191,6 @@ func (node *Node) get(t *ImmutableTree, key []byte) (index int64, value []byte) 
 	return index, value
 }
 
-func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
-	if node.isLeaf() {
-		if index == 0 {
-			return node.key, node.value
-		}
-		return nil, nil
-	}
-	// TODO: could improve this by storing the
-	// sizes as well as left/right hash.
-	leftNode := node.getLeftNode(t)
-
-	if index < leftNode.size {
-		return leftNode.getByIndex(t, index)
-	}
-	return node.getRightNode(t).getByIndex(t, index-leftNode.size)
-}
-
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *Node) _hash() []byte {
@@ -300,6 +282,8 @@ func (node *Node) validate() error {
 
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
+// Note to future people, it just sucks we have to preserve this function,
+// e.g. keeping depth size and version in here...
 func (node *Node) writeHashBytes(w io.Writer) error {
 	err := utils.EncodeVarint(w, int64(node.depth))
 	if err != nil {
@@ -426,6 +410,23 @@ func (node *Node) writeBytes(w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
+	if node.isLeaf() {
+		if index == 0 {
+			return node.key, node.value
+		}
+		return nil, nil
+	}
+	// TODO: could improve this by storing the
+	// sizes as well as left/right hash.
+	leftNode := node.getLeftNode(t)
+
+	if index < leftNode.size {
+		return leftNode.getByIndex(t, index)
+	}
+	return node.getRightNode(t).getByIndex(t, index-leftNode.size)
 }
 
 func (node *Node) getLeftNode(t *ImmutableTree) *Node {
