@@ -33,7 +33,7 @@ func TestDelete(t *testing.T) {
 	k1Value, _, _ := tree.GetVersionedWithProof([]byte("k1"), version)
 	require.Nil(t, k1Value)
 
-	key := tree.ndb.rootKey(version)
+	key := getRootKey(version)
 	err = memDB.Set(key, hash)
 	require.NoError(t, err)
 	tree.versions[version] = true

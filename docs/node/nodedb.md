@@ -46,7 +46,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) {
 		// can delete the orphan.  Otherwise, we shorten its lifetime, by
 		// moving its endpoint to the previous version.
 		if predecessor < fromVersion || fromVersion == toVersion {
-			ndb.batch.Delete(ndb.nodeKey(hash))
+			ndb.batch.Delete(getNodeKey(hash))
 			ndb.uncacheNode(hash)
 		} else {
 			ndb.saveOrphan(hash, fromVersion, predecessor)

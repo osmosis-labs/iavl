@@ -125,7 +125,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 		return err
 	}
 
-	if err = i.batch.Set(i.tree.ndb.nodeKey(node.hash), buf.Bytes()); err != nil {
+	if err = i.batch.Set(getNodeKey(node.hash), buf.Bytes()); err != nil {
 		return err
 	}
 
@@ -162,11 +162,11 @@ func (i *Importer) Commit() error {
 
 	switch len(i.stack) {
 	case 0:
-		if err := i.batch.Set(i.tree.ndb.rootKey(i.version), []byte{}); err != nil {
+		if err := i.batch.Set(getRootKey(i.version), []byte{}); err != nil {
 			panic(err)
 		}
 	case 1:
-		if err := i.batch.Set(i.tree.ndb.rootKey(i.version), i.stack[0].hash); err != nil {
+		if err := i.batch.Set(getRootKey(i.version), i.stack[0].hash); err != nil {
 			panic(err)
 		}
 	default:
