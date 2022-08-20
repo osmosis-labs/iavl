@@ -89,8 +89,8 @@ func (t *ImmutableTree) renderNode(node *Node, indent string, depth int, encoder
 
 	// recurse on inner node
 	here := fmt.Sprintf("%s%s", prefix, encoder(node.hash, depth, false))
-	left := t.renderNode(node.getLeftNode(t), indent, depth+1, encoder)
-	right := t.renderNode(node.getRightNode(t), indent, depth+1, encoder)
+	left := t.renderNode(t.getLeftChild(node), indent, depth+1, encoder)
+	right := t.renderNode(t.getRightChild(node), indent, depth+1, encoder)
 	result := append(left, here)
 	result = append(result, right...)
 	return result
@@ -292,4 +292,18 @@ func (t *ImmutableTree) nodeSize() int {
 		return false
 	})
 	return size
+}
+
+func (t *ImmutableTree) getLeftChild(node *Node) *Node {
+	if node.leftNode != nil {
+		return node.leftNode
+	}
+	return t.ndb.GetNode(node.leftHash)
+}
+
+func (t *ImmutableTree) getRightChild(node *Node) *Node {
+	if node.rightNode != nil {
+		return node.rightNode
+	}
+	return t.ndb.GetNode(node.rightHash)
 }

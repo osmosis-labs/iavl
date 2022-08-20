@@ -161,9 +161,9 @@ func (node *Node) has(t *ImmutableTree, key []byte) (has bool) {
 		return false
 	}
 	if bytes.Compare(key, node.key) < 0 {
-		return node.getLeftNode(t).has(t, key)
+		return t.getLeftChild(node).has(t, key)
 	}
-	return node.getRightNode(t).has(t, key)
+	return t.getRightChild(node).has(t, key)
 }
 
 // Get a key under the node.
@@ -183,9 +183,9 @@ func (node *Node) get(t *ImmutableTree, key []byte) (index int64, value []byte) 
 	}
 
 	if bytes.Compare(key, node.key) < 0 {
-		return node.getLeftNode(t).get(t, key)
+		return t.getLeftChild(node).get(t, key)
 	}
-	rightNode := node.getRightNode(t)
+	rightNode := t.getRightChild(node)
 	index, value = rightNode.get(t, key)
 	index += node.size - rightNode.size
 	return index, value
@@ -421,36 +421,22 @@ func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value [
 	}
 	// TODO: could improve this by storing the
 	// sizes as well as left/right hash.
-	leftNode := node.getLeftNode(t)
+	leftNode := t.getLeftChild(node)
 
 	if index < leftNode.size {
 		return leftNode.getByIndex(t, index)
 	}
-	return node.getRightNode(t).getByIndex(t, index-leftNode.size)
-}
-
-func (node *Node) getLeftNode(t *ImmutableTree) *Node {
-	if node.leftNode != nil {
-		return node.leftNode
-	}
-	return t.ndb.GetNode(node.leftHash)
-}
-
-func (node *Node) getRightNode(t *ImmutableTree) *Node {
-	if node.rightNode != nil {
-		return node.rightNode
-	}
-	return t.ndb.GetNode(node.rightHash)
+	return t.getRightChild(node).getByIndex(t, index-leftNode.size)
 }
 
 // NOTE: mutates depth and size
 func (node *Node) calcHeightAndSize(t *ImmutableTree) {
-	node.depth = maxInt8(node.getLeftNode(t).depth, node.getRightNode(t).depth) + 1
-	node.size = node.getLeftNode(t).size + node.getRightNode(t).size
+	node.depth = maxInt8(t.getLeftChild(node).depth, t.getRightChild(node).depth) + 1
+	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
 }
 
 func (node *Node) calcBalance(t *ImmutableTree) int {
-	return int(node.getLeftNode(t).depth) - int(node.getRightNode(t).depth)
+	return int(t.getLeftChild(node).depth) - int(t.getRightChild(node).depth)
 }
 
 // traverse is a wrapper over traverseInRange when we want the whole tree
@@ -484,5 +470,5 @@ func (node *Node) lmd(t *ImmutableTree) *Node {
 	if node.isLeaf() {
 		return node
 	}
-	return node.getLeftNode(t).lmd(t)
+	return t.getLeftChild(node).lmd(t)
 }

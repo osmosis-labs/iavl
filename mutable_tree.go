@@ -240,10 +240,10 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 		node = node.clone(version)
 
 		if bytes.Compare(key, node.key) < 0 {
-			node.leftNode, updated = tree.recursiveSet(node.getLeftNode(tree.ImmutableTree), key, value, orphans)
+			node.leftNode, updated = tree.recursiveSet(tree.ImmutableTree.getLeftChild(node), key, value, orphans)
 			node.leftHash = nil // leftHash is yet unknown
 		} else {
-			node.rightNode, updated = tree.recursiveSet(node.getRightNode(tree.ImmutableTree), key, value, orphans)
+			node.rightNode, updated = tree.recursiveSet(tree.ImmutableTree.getRightChild(node), key, value, orphans)
 			node.rightHash = nil // rightHash is yet unknown
 		}
 
@@ -306,7 +306,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 
 	// node.key < key; we go to the left to find the key:
 	if bytes.Compare(key, node.key) < 0 {
-		newLeftHash, newLeftNode, newKey, value := tree.recursiveRemove(node.getLeftNode(tree.ImmutableTree), key, orphans) //nolint:govet
+		newLeftHash, newLeftNode, newKey, value := tree.recursiveRemove(tree.ImmutableTree.getLeftChild(node), key, orphans) //nolint:govet
 
 		if len(*orphans) == 0 {
 			return node.hash, node, nil, value
@@ -323,7 +323,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 		return newNode.hash, newNode, newKey, value
 	}
 	// node.key >= key; either found or look to the right:
-	newRightHash, newRightNode, newKey, value := tree.recursiveRemove(node.getRightNode(tree.ImmutableTree), key, orphans)
+	newRightHash, newRightNode, newKey, value := tree.recursiveRemove(tree.ImmutableTree.getRightChild(node), key, orphans)
 
 	if len(*orphans) == 0 {
 		return node.hash, node, nil, value
@@ -929,7 +929,7 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, *Node) {
 
 	// TODO: optimize balance & rotate.
 	node = node.clone(version)
-	orphaned := node.getLeftNode(tree.ImmutableTree)
+	orphaned := tree.ImmutableTree.getLeftChild(node)
 	newNode := orphaned.clone(version)
 
 	newNoderHash, newNoderCached := newNode.rightHash, newNode.rightNode
@@ -948,7 +948,7 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, *Node) {
 
 	// TODO: optimize balance & rotate.
 	node = node.clone(version)
-	orphaned := node.getRightNode(tree.ImmutableTree)
+	orphaned := tree.ImmutableTree.getRightChild(node)
 	newNode := orphaned.clone(version)
 
 	newNodelHash, newNodelCached := newNode.leftHash, newNode.leftNode
@@ -970,7 +970,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 	balance := node.calcBalance(tree.ImmutableTree)
 
 	if balance > 1 {
-		if node.getLeftNode(tree.ImmutableTree).calcBalance(tree.ImmutableTree) >= 0 {
+		if tree.ImmutableTree.getLeftChild(node).calcBalance(tree.ImmutableTree) >= 0 {
 			// Left Left Case
 			newNode, orphaned := tree.rotateRight(node)
 			*orphans = append(*orphans, orphaned)
@@ -979,7 +979,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 		// Left Right Case
 		var leftOrphaned *Node
 
-		left := node.getLeftNode(tree.ImmutableTree)
+		left := tree.ImmutableTree.getLeftChild(node)
 		node.leftHash = nil
 		node.leftNode, leftOrphaned = tree.rotateLeft(left)
 		newNode, rightOrphaned := tree.rotateRight(node)
@@ -987,7 +987,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 		return newNode
 	}
 	if balance < -1 {
-		if node.getRightNode(tree.ImmutableTree).calcBalance(tree.ImmutableTree) <= 0 {
+		if tree.ImmutableTree.getRightChild(node).calcBalance(tree.ImmutableTree) <= 0 {
 			// Right Right Case
 			newNode, orphaned := tree.rotateLeft(node)
 			*orphans = append(*orphans, orphaned)
@@ -996,7 +996,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 		// Right Left Case
 		var rightOrphaned *Node
 
-		right := node.getRightNode(tree.ImmutableTree)
+		right := tree.ImmutableTree.getRightChild(node)
 		node.rightHash = nil
 		node.rightNode, rightOrphaned = tree.rotateRight(right)
 		newNode, leftOrphaned := tree.rotateLeft(node)

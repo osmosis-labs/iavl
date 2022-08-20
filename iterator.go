@@ -122,22 +122,22 @@ func (t *traversal) next() *Node {
 		if t.ascending {
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getRightChild(node), true)
 			}
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getLeftChild(node), true)
 			}
 		} else {
 			// if node is a branch node and the order is not ascending
 			// We traverse through the right subtree, then the left subtree.
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getLeftChild(node), true)
 			}
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getRightChild(node), true)
 			}
 		}
 	}

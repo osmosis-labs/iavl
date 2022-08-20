@@ -227,10 +227,10 @@ func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathTo
 			Size:    node.size,
 			Version: node.version,
 			Left:    nil,
-			Right:   node.getRightNode(t).hash,
+			Right:   t.getRightChild(node).hash,
 		}
 		*path = append(*path, pin)
-		n, err := node.getLeftNode(t).pathToLeafRecursive(t, key, path)
+		n, err := t.getLeftChild(node).pathToLeafRecursive(t, key, path)
 		return n, err
 	}
 	// right side
@@ -238,10 +238,10 @@ func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathTo
 		Height:  node.depth,
 		Size:    node.size,
 		Version: node.version,
-		Left:    node.getLeftNode(t).hash,
+		Left:    t.getLeftChild(node).hash,
 		Right:   nil,
 	}
 	*path = append(*path, pin)
-	n, err := node.getRightNode(t).pathToLeafRecursive(t, key, path)
+	n, err := t.getRightChild(node).pathToLeafRecursive(t, key, path)
 	return n, err
 }
