@@ -73,7 +73,8 @@ func N(l, r interface{}) *Node {
 		leftNode:  left,
 		rightNode: right,
 	}
-	n.calcHeightAndSize(nil)
+	var tree *ImmutableTree = nil
+	tree.setDepthAndSize(n)
 	return n
 }
 

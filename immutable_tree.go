@@ -324,3 +324,13 @@ func (t *ImmutableTree) getByIndexRecursive(node *Node, index int64) (key []byte
 	}
 	return t.getByIndexRecursive(t.getRightChild(node), index-leftNode.size)
 }
+
+func (t *ImmutableTree) calcBalance(node *Node) int {
+	return int(t.getLeftChild(node).depth) - int(t.getRightChild(node).depth)
+}
+
+// NOTE: mutates depth and size
+func (t *ImmutableTree) setDepthAndSize(node *Node) {
+	node.depth = maxInt8(t.getLeftChild(node).depth, t.getRightChild(node).depth) + 1
+	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
+}

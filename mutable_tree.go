@@ -250,7 +250,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 		if updated {
 			return node, updated
 		}
-		node.calcHeightAndSize(tree.ImmutableTree)
+		tree.setDepthAndSize(node)
 		newNode := tree.balance(node, orphans)
 		return newNode, updated
 	}
@@ -318,7 +318,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 
 		newNode := node.clone(version)
 		newNode.leftHash, newNode.leftNode = newLeftHash, newLeftNode
-		newNode.calcHeightAndSize(tree.ImmutableTree)
+		tree.setDepthAndSize(newNode)
 		newNode = tree.balance(newNode, orphans)
 		return newNode.hash, newNode, newKey, value
 	}
@@ -338,7 +338,7 @@ func (tree *MutableTree) recursiveRemove(node *Node, key []byte, orphans *[]*Nod
 	if newKey != nil {
 		newNode.key = newKey
 	}
-	newNode.calcHeightAndSize(tree.ImmutableTree)
+	tree.setDepthAndSize(newNode)
 	newNode = tree.balance(newNode, orphans)
 	return newNode.hash, newNode, nil, value
 }
@@ -936,8 +936,8 @@ func (tree *MutableTree) rotateRight(node *Node) (*Node, *Node) {
 	newNode.rightHash, newNode.rightNode = node.hash, node
 	node.leftHash, node.leftNode = newNoderHash, newNoderCached
 
-	node.calcHeightAndSize(tree.ImmutableTree)
-	newNode.calcHeightAndSize(tree.ImmutableTree)
+	tree.setDepthAndSize(node)
+	tree.setDepthAndSize(newNode)
 
 	return newNode, orphaned
 }
@@ -955,8 +955,8 @@ func (tree *MutableTree) rotateLeft(node *Node) (*Node, *Node) {
 	newNode.leftHash, newNode.leftNode = node.hash, node
 	node.rightHash, node.rightNode = newNodelHash, newNodelCached
 
-	node.calcHeightAndSize(tree.ImmutableTree)
-	newNode.calcHeightAndSize(tree.ImmutableTree)
+	tree.setDepthAndSize(node)
+	tree.setDepthAndSize(newNode)
 
 	return newNode, orphaned
 }
@@ -967,10 +967,10 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 	if node.persisted {
 		panic("Unexpected balance() call on persisted node")
 	}
-	balance := node.calcBalance(tree.ImmutableTree)
+	balance := tree.calcBalance(node)
 
 	if balance > 1 {
-		if tree.ImmutableTree.getLeftChild(node).calcBalance(tree.ImmutableTree) >= 0 {
+		if tree.calcBalance(tree.getLeftChild(node)) >= 0 {
 			// Left Left Case
 			newNode, orphaned := tree.rotateRight(node)
 			*orphans = append(*orphans, orphaned)
@@ -987,7 +987,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 		return newNode
 	}
 	if balance < -1 {
-		if tree.ImmutableTree.getRightChild(node).calcBalance(tree.ImmutableTree) <= 0 {
+		if tree.calcBalance(tree.getRightChild(node)) <= 0 {
 			// Right Right Case
 			newNode, orphaned := tree.rotateLeft(node)
 			*orphans = append(*orphans, orphaned)
@@ -996,7 +996,7 @@ func (tree *MutableTree) balance(node *Node, orphans *[]*Node) (newSelf *Node) {
 		// Right Left Case
 		var rightOrphaned *Node
 
-		right := tree.ImmutableTree.getRightChild(node)
+		right := tree.getRightChild(node)
 		node.rightHash = nil
 		node.rightNode, rightOrphaned = tree.rotateRight(right)
 		newNode, leftOrphaned := tree.rotateLeft(node)

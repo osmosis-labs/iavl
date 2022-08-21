@@ -412,33 +412,6 @@ func (node *Node) writeBytes(w io.Writer) error {
 	return nil
 }
 
-func (node *Node) getByIndex(t *ImmutableTree, index int64) (key []byte, value []byte) {
-	if node.isLeaf() {
-		if index == 0 {
-			return node.key, node.value
-		}
-		return nil, nil
-	}
-	// TODO: could improve this by storing the
-	// sizes as well as left/right hash.
-	leftNode := t.getLeftChild(node)
-
-	if index < leftNode.size {
-		return leftNode.getByIndex(t, index)
-	}
-	return t.getRightChild(node).getByIndex(t, index-leftNode.size)
-}
-
-// NOTE: mutates depth and size
-func (node *Node) calcHeightAndSize(t *ImmutableTree) {
-	node.depth = maxInt8(t.getLeftChild(node).depth, t.getRightChild(node).depth) + 1
-	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
-}
-
-func (node *Node) calcBalance(t *ImmutableTree) int {
-	return int(t.getLeftChild(node).depth) - int(t.getRightChild(node).depth)
-}
-
 // traverse is a wrapper over traverseInRange when we want the whole tree
 func (node *Node) traverse(t *ImmutableTree, ascending bool, cb func(*Node) bool) bool {
 	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node *Node) bool {
