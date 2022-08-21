@@ -42,7 +42,7 @@ func printNode(ndb *nodeDB, node *Node, indent int) {
 	hash := node._hash()
 	fmt.Printf("%sh:%X\n", indentPrefix, hash)
 	if node.isLeaf() {
-		fmt.Printf("%s%X:%X (%v)\n", indentPrefix, node.key, node.value, node.depth)
+		fmt.Printf("%s%X:%X (%v)\n", indentPrefix, node.key, node.value, node.subtreeHeight)
 	}
 
 	if node.leftNode != nil {

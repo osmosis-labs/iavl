@@ -28,9 +28,18 @@ type Node struct {
 	size      int64
 	leftNode  *Node
 	rightNode *Node
-	// TODO: Delete depth. should become derived off len(path)
-	depth     int8
-	persisted bool
+	// subtreeHeight is the max depth of the nodes underneath this one.
+	// A leaf has subtreeHeight 0. (as there are no nodes underneath it)
+	// A node which only has leaf children has depth 1. (As that subtree has depth 1)
+	// A node of the form:
+	//    X
+	//   / \
+	//  y   z
+	// /
+	// a
+	// has subtreeHeights {x = 2, y=1, a = 0, z = 0}
+	subtreeHeight int8
+	persisted     bool
 }
 
 var _ cache.Node = (*Node)(nil)
@@ -38,11 +47,11 @@ var _ cache.Node = (*Node)(nil)
 // NewNode returns a new node from a key, value and version.
 func NewNode(key []byte, value []byte, version int64) *Node {
 	return &Node{
-		key:     key,
-		value:   value,
-		depth:   0,
-		size:    1,
-		version: version,
+		key:           key,
+		value:         value,
+		subtreeHeight: 0,
+		size:          1,
+		version:       version,
 	}
 }
 
@@ -52,12 +61,12 @@ func NewNode(key []byte, value []byte, version int64) *Node {
 // The caller must set it afterwards. (NOTE: It is easily derivable, via just running the hash of data in the node)
 func DeserializeNode(buf []byte) (*Node, error) {
 	// Read node header (depth, size, version, key).
-	depth, n, cause := utils.DecodeVarint(buf)
+	subtreeHeight, n, cause := utils.DecodeVarint(buf)
 	if cause != nil {
 		return nil, errors.Wrap(cause, "decoding node.depth")
 	}
 	buf = buf[n:]
-	if depth < int64(math.MinInt8) || depth > int64(math.MaxInt8) {
+	if subtreeHeight < int64(math.MinInt8) || subtreeHeight > int64(math.MaxInt8) {
 		return nil, errors.New("invalid depth, must be int8")
 	}
 
@@ -80,10 +89,10 @@ func DeserializeNode(buf []byte) (*Node, error) {
 	buf = buf[n:]
 
 	node := &Node{
-		depth:   int8(depth),
-		size:    size,
-		version: ver,
-		key:     key,
+		subtreeHeight: int8(subtreeHeight),
+		size:          size,
+		version:       ver,
+		key:           key,
 	}
 
 	// Read node body.
@@ -135,21 +144,21 @@ func (node *Node) clone(version int64) *Node {
 		panic("Attempt to copy a leaf node")
 	}
 	return &Node{
-		key:       node.key,
-		depth:     node.depth,
-		version:   version,
-		size:      node.size,
-		hash:      nil,
-		leftHash:  node.leftHash,
-		leftNode:  node.leftNode,
-		rightHash: node.rightHash,
-		rightNode: node.rightNode,
-		persisted: false,
+		key:           node.key,
+		subtreeHeight: node.subtreeHeight,
+		version:       version,
+		size:          node.size,
+		hash:          nil,
+		leftHash:      node.leftHash,
+		leftNode:      node.leftNode,
+		rightHash:     node.rightHash,
+		rightNode:     node.rightNode,
+		persisted:     false,
 	}
 }
 
 func (node *Node) isLeaf() bool {
-	return node.depth == 0
+	return node.subtreeHeight == 0
 }
 
 // Check if the node has a descendant with the given key.
@@ -250,14 +259,14 @@ func (node *Node) validate() error {
 	if node.version <= 0 {
 		return errors.New("version must be greater than 0")
 	}
-	if node.depth < 0 {
+	if node.subtreeHeight < 0 {
 		return errors.New("depth cannot be less than 0")
 	}
 	if node.size < 1 {
 		return errors.New("size must be at least 1")
 	}
 
-	if node.depth == 0 {
+	if node.subtreeHeight == 0 {
 		// Leaf nodes
 		if node.value == nil {
 			return errors.New("value cannot be nil for leaf node")
@@ -285,9 +294,9 @@ func (node *Node) validate() error {
 // Note to future people, it just sucks we have to preserve this function,
 // e.g. keeping depth size and version in here...
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := utils.EncodeVarint(w, int64(node.depth))
+	err := utils.EncodeVarint(w, int64(node.subtreeHeight))
 	if err != nil {
-		return errors.Wrap(err, "writing depth")
+		return errors.Wrap(err, "writing subtreeHeight")
 	}
 	err = utils.EncodeVarint(w, node.size)
 	if err != nil {
@@ -368,9 +377,9 @@ func (node *Node) WriteBytes(w io.Writer) error {
 	if node == nil {
 		return errors.New("cannot write nil node")
 	}
-	cause := utils.EncodeVarint(w, int64(node.depth))
+	cause := utils.EncodeVarint(w, int64(node.subtreeHeight))
 	if cause != nil {
-		return errors.Wrap(cause, "writing depth")
+		return errors.Wrap(cause, "writing subtreeHeight")
 	}
 	cause = utils.EncodeVarint(w, node.size)
 	if cause != nil {

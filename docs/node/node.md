@@ -25,7 +25,7 @@ Inner nodes have keys equal to the highest key on their left branch and have val
 
 The version of a node is the first version of the IAVL tree that the node gets added in. Future versions of the IAVL may point to this node if they also contain the node, however the node's version itself does not change.
 
-Size is the number of leaves under a given node. With a full subtree, `node.size = 2^(node.depth)`.
+Size is the number of leaves under a given node. With a full subtree, `node.size = 2^(node.subtreeHeight)`.
 
 ### Marshaling 
 
@@ -34,7 +34,7 @@ Every node is persisted by encoding the key, version, depth, size and hash. If t
 ```golang
 // Writes the node as a serialized byte slice to the supplied io.Writer.
 func (node *Node) writeBytes(w io.Writer) error {
-	cause := utils.EncodeVarint(w, node.depth)
+	cause := utils.EncodeVarint(w, node.subtreeHeight)
 	if cause != nil {
 		return errors.Wrap(cause, "writing depth")
 	}
@@ -87,7 +87,7 @@ A node's hash is calculated by hashing the depth, size, and version of the node.
 // Writes the node's hash to the given io.Writer. This function expects
 // child hashes to be already set.
 func (node *Node) writeHashBytes(w io.Writer) error {
-	err := utils.EncodeVarint(w, node.depth)
+	err := utils.EncodeVarint(w, node.subtreeHeight)
 	if err != nil {
 		return errors.Wrap(err, "writing depth")
 	}

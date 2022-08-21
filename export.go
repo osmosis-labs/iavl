@@ -55,7 +55,7 @@ func (e *Exporter) export(ctx context.Context) {
 			Key:     node.key,
 			Value:   node.value,
 			Version: node.version,
-			Height:  node.depth,
+			Height:  node.subtreeHeight,
 		}
 
 		select {

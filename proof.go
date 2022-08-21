@@ -209,7 +209,7 @@ func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, e
 // As an optimization the already constructed path is passed in as an argument
 // and is shared among recursive calls.
 func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
-	if node.depth == 0 {
+	if node.subtreeHeight == 0 {
 		if bytes.Equal(node.key, key) {
 			return node, nil
 		}
@@ -223,7 +223,7 @@ func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathTo
 	if bytes.Compare(key, node.key) < 0 {
 		// left side
 		pin := ProofInnerNode{
-			Height:  node.depth,
+			Height:  node.subtreeHeight,
 			Size:    node.size,
 			Version: node.version,
 			Left:    nil,
@@ -235,7 +235,7 @@ func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathTo
 	}
 	// right side
 	pin := ProofInnerNode{
-		Height:  node.depth,
+		Height:  node.subtreeHeight,
 		Size:    node.size,
 		Version: node.version,
 		Left:    t.getLeftChild(node).hash,

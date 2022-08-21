@@ -114,7 +114,7 @@ func (t *ImmutableTree) Height() int8 {
 	if t.root == nil {
 		return 0
 	}
-	return t.root.depth
+	return t.root.subtreeHeight
 }
 
 // Has returns whether or not a key exists.
@@ -240,7 +240,7 @@ func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(
 		return false
 	}
 	return t.traverseInRange(t.root, start, end, ascending, false, false, func(node *Node) bool {
-		if node.depth == 0 {
+		if node.subtreeHeight == 0 {
 			return fn(node.key, node.value)
 		}
 		return false
@@ -255,7 +255,7 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 		return false
 	}
 	return t.traverseInRange(t.root, start, end, ascending, true, false, func(node *Node) bool {
-		if node.depth == 0 {
+		if node.subtreeHeight == 0 {
 			return fn(node.key, node.value, node.version)
 		}
 		return false
@@ -326,12 +326,12 @@ func (t *ImmutableTree) getByIndexRecursive(node *Node, index int64) (key []byte
 }
 
 func (t *ImmutableTree) calcBalance(node *Node) int {
-	return int(t.getLeftChild(node).depth) - int(t.getRightChild(node).depth)
+	return int(t.getLeftChild(node).subtreeHeight) - int(t.getRightChild(node).subtreeHeight)
 }
 
 // NOTE: mutates depth and size
 func (t *ImmutableTree) setDepthAndSize(node *Node) {
-	node.depth = maxInt8(t.getLeftChild(node).depth, t.getRightChild(node).depth) + 1
+	node.subtreeHeight = maxInt8(t.getLeftChild(node).subtreeHeight, t.getRightChild(node).subtreeHeight) + 1
 	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
 }
 
