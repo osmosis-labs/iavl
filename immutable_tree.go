@@ -239,7 +239,7 @@ func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, false, false, func(node *Node) bool {
+	return t.traverseInRange(t.root, start, end, ascending, false, false, func(node *Node) bool {
 		if node.depth == 0 {
 			return fn(node.key, node.value)
 		}
@@ -254,7 +254,7 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, true, false, func(node *Node) bool {
+	return t.traverseInRange(t.root, start, end, ascending, true, false, func(node *Node) bool {
 		if node.depth == 0 {
 			return fn(node.key, node.value, node.version)
 		}
@@ -287,7 +287,7 @@ func (t *ImmutableTree) clone() *ImmutableTree {
 // nodeSize is like Size, but includes inner nodes too.
 func (t *ImmutableTree) nodeSize() int {
 	size := 0
-	t.root.traverse(t, true, func(n *Node) bool {
+	t.traverse(t.root, true, func(n *Node) bool {
 		size++
 		return false
 	})
@@ -333,4 +333,30 @@ func (t *ImmutableTree) calcBalance(node *Node) int {
 func (t *ImmutableTree) setDepthAndSize(node *Node) {
 	node.depth = maxInt8(t.getLeftChild(node).depth, t.getRightChild(node).depth) + 1
 	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
+}
+
+// traverse is a wrapper over traverseInRange when we want the whole tree
+func (t *ImmutableTree) traverse(node *Node, ascending bool, cb func(*Node) bool) bool {
+	return t.traverseInRange(node, nil, nil, ascending, false, false, func(node *Node) bool {
+		return cb(node)
+	})
+}
+
+// traversePost is a wrapper over traverseInRange when we want the whole tree post-order
+func (t *ImmutableTree) traversePost(node *Node, ascending bool, cb func(*Node) bool) bool {
+	return t.traverseInRange(node, nil, nil, ascending, false, true, func(node *Node) bool {
+		return cb(node)
+	})
+}
+
+func (t *ImmutableTree) traverseInRange(node *Node, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*Node) bool) bool {
+	stop := false
+	trav := t.newTraversal(node, start, end, ascending, inclusive, post)
+	for node2 := trav.next(); node2 != nil; node2 = trav.next() {
+		stop = cb(node2)
+		if stop {
+			return stop
+		}
+	}
+	return stop
 }

@@ -21,7 +21,7 @@ type traversal struct {
 
 var errIteratorNilTreeGiven = errors.New("iterator must be created with an immutable tree but the tree was nil")
 
-func (node *Node) newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
+func (tree *ImmutableTree) newTraversal(node *Node, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
 	return &traversal{
 		tree:         tree,
 		start:        start,
@@ -177,7 +177,7 @@ func NewIterator(start, end []byte, ascending bool, tree *ImmutableTree) dbm.Ite
 	}
 
 	if iter.valid {
-		iter.t = tree.root.newTraversal(tree, start, end, ascending, false, false)
+		iter.t = tree.newTraversal(tree.root, start, end, ascending, false, false)
 		// Move iterator before the first element
 		iter.Next()
 	} else {

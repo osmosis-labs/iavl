@@ -411,29 +411,3 @@ func (node *Node) writeBytes(w io.Writer) error {
 	}
 	return nil
 }
-
-// traverse is a wrapper over traverseInRange when we want the whole tree
-func (node *Node) traverse(t *ImmutableTree, ascending bool, cb func(*Node) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, false, func(node *Node) bool {
-		return cb(node)
-	})
-}
-
-// traversePost is a wrapper over traverseInRange when we want the whole tree post-order
-func (node *Node) traversePost(t *ImmutableTree, ascending bool, cb func(*Node) bool) bool {
-	return node.traverseInRange(t, nil, nil, ascending, false, true, func(node *Node) bool {
-		return cb(node)
-	})
-}
-
-func (node *Node) traverseInRange(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*Node) bool) bool {
-	stop := false
-	t := node.newTraversal(tree, start, end, ascending, inclusive, post)
-	for node2 := t.next(); node2 != nil; node2 = t.next() {
-		stop = cb(node2)
-		if stop {
-			return stop
-		}
-	}
-	return stop
-}
