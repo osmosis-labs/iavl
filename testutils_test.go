@@ -313,6 +313,69 @@ func assertIterator(t *testing.T, itr dbm.Iterator, mirror [][]string, ascending
 	}
 }
 
+func getAllNodes(t *testing.T, ndb *nodeDB) []*Node {
+	nodes := []*Node{}
+
+	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
+		nodes = append(nodes, node)
+		return nil
+	})
+
+	require.NoError(t, err)
+
+	return nodes
+}
+
+// Utility and test functions
+
+func (ndb *nodeDB) leafNodes() ([]*Node, error) {
+	leaves := []*Node{}
+
+	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
+		if node.isLeaf() {
+			leaves = append(leaves, node)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return leaves, nil
+}
+
+func (ndb *nodeDB) orphans() ([][]byte, error) {
+	orphans := [][]byte{}
+
+	err := ndb.traverseOrphans(func(k, v []byte) error {
+		orphans = append(orphans, v)
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return orphans, nil
+}
+
+// Not efficient.
+// NOTE: DB cannot implement Size() because
+// mutations are not always synchronous.
+func (ndb *nodeDB) size() int {
+	size := 0
+	err := ndb.traverse(func(k, v []byte) error {
+		size++
+		return nil
+	})
+
+	if err != nil {
+		return -1
+	}
+	return size
+}
+
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
 	db, err := dbm.NewDB("test", dbm.MemDBBackend, "")
 	require.NoError(b, err)

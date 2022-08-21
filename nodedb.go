@@ -790,71 +790,6 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 	}
 }
 
-// Utility and test functions
-
-func (ndb *nodeDB) leafNodes() ([]*Node, error) {
-	leaves := []*Node{}
-
-	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
-		if node.isLeaf() {
-			leaves = append(leaves, node)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return leaves, nil
-}
-
-func (ndb *nodeDB) nodes() ([]*Node, error) {
-	nodes := []*Node{}
-
-	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
-		nodes = append(nodes, node)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
-func (ndb *nodeDB) orphans() ([][]byte, error) {
-	orphans := [][]byte{}
-
-	err := ndb.traverseOrphans(func(k, v []byte) error {
-		orphans = append(orphans, v)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return orphans, nil
-}
-
-// Not efficient.
-// NOTE: DB cannot implement Size() because
-// mutations are not always synchronous.
-func (ndb *nodeDB) size() int {
-	size := 0
-	err := ndb.traverse(func(k, v []byte) error {
-		size++
-		return nil
-	})
-
-	if err != nil {
-		return -1
-	}
-	return size
-}
-
 func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *Node) error) error {
 	nodes := []*Node{}
 
@@ -888,13 +823,16 @@ func (ndb *nodeDB) String() (string, error) {
 	var str string
 	index := 0
 
-	utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(key, value []byte) error {
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
 	str += "\n"
 
-	err := ndb.traverseOrphans(func(key, value []byte) error {
+	err = ndb.traverseOrphans(func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
