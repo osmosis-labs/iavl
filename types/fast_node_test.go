@@ -18,7 +18,7 @@ func randBytes(length int) []byte {
 	return key
 }
 
-func TestFastNode_encodedSize(t *testing.T) {
+func TestFastNode_EncodedSize(t *testing.T) {
 	fastNode := &FastNode{
 		key:                  randBytes(10),
 		versionLastUpdatedAt: 1,

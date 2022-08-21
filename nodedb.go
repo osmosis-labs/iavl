@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"math"
 	"sort"
 	"strconv"
@@ -146,9 +147,6 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*types.FastNode, error) {
 
 // SaveNode saves a node to disk.
 func (ndb *nodeDB) SaveNode(node *Node) {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-
 	if node.hash == nil {
 		panic("Expected to find node.hash, but none found.")
 	}
@@ -156,20 +154,37 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 		panic("Shouldn't be calling save on an already persisted node.")
 	}
 
-	// Save node bytes to db.
-	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	ndb.mtx.Lock()
+	defer ndb.mtx.Unlock()
 
-	if err := node.writeBytes(&buf); err != nil {
-		panic(err)
-	}
+	ndb.writeObjectUnlocked(getNodeKey(node.hash), node)
 
-	if err := ndb.batch.Set(getNodeKey(node.hash), buf.Bytes()); err != nil {
-		panic(err)
-	}
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
+
 	ndb.nodeCache.Add(node)
+}
+
+type dbWriteableI interface {
+	EncodedSize() int
+	WriteBytes(w io.Writer) error
+}
+
+// writeObject writes an object to the growing DB write batch, that saves on commit.
+// All errors panic
+// The caller _must_ have a mutex lock on nodeDB set.
+func (ndb *nodeDB) writeObjectUnlocked(key []byte, obj dbWriteableI) {
+	// Save node bytes to db.
+	var buf bytes.Buffer
+	buf.Grow(obj.EncodedSize())
+
+	if err := obj.WriteBytes(&buf); err != nil {
+		panic(err)
+	}
+
+	if err := ndb.batch.Set(key, buf.Bytes()); err != nil {
+		panic(err)
+	}
 }
 
 // SaveNode saves a FastNode to disk and add to cache.
@@ -240,20 +255,11 @@ func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
 // SaveNode saves a FastNode to disk.
 func (ndb *nodeDB) saveFastNodeUnlocked(node *types.FastNode, shouldAddToCache bool) error {
 	if node.GetKey() == nil {
-		return fmt.Errorf("FastNode cannot have a nil value for key")
+		return fmt.Errorf("a FastNode cannot have a nil value for key")
 	}
 
-	// Save node bytes to db.
-	var buf bytes.Buffer
-	buf.Grow(node.EncodedSize())
+	ndb.writeObjectUnlocked(getFastNodeKey(node.GetKey()), node)
 
-	if err := node.WriteBytes(&buf); err != nil {
-		return fmt.Errorf("error while writing fastnode bytes. Err: %w", err)
-	}
-
-	if err := ndb.batch.Set(getFastNodeKey(node.GetKey()), buf.Bytes()); err != nil {
-		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
-	}
 	if shouldAddToCache {
 		ndb.fastNodeCache.Add(node)
 	}

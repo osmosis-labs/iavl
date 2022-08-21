@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNode_encodedSize(t *testing.T) {
+func TestNode_EncodedSize(t *testing.T) {
 	node := &Node{
 		key:       randBytes(10),
 		value:     randBytes(10),
@@ -26,11 +26,11 @@ func TestNode_encodedSize(t *testing.T) {
 	}
 
 	// leaf node
-	require.Equal(t, 26, node.encodedSize())
+	require.Equal(t, 26, node.EncodedSize())
 
 	// non-leaf node
 	node.depth = 1
-	require.Equal(t, 57, node.encodedSize())
+	require.Equal(t, 57, node.EncodedSize())
 }
 
 func TestNode_encode_decode(t *testing.T) {
@@ -61,7 +61,7 @@ func TestNode_encode_decode(t *testing.T) {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
-			err := tc.node.writeBytes(&buf)
+			err := tc.node.WriteBytes(&buf)
 			if tc.expectError {
 				require.Error(t, err)
 				return
@@ -131,7 +131,7 @@ func TestNode_validate(t *testing.T) {
 	}
 }
 
-func BenchmarkNode_encodedSize(b *testing.B) {
+func BenchmarkNode_EncodedSize(b *testing.B) {
 	node := &Node{
 		key:       randBytes(25),
 		value:     randBytes(100),
@@ -144,7 +144,7 @@ func BenchmarkNode_encodedSize(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		node.encodedSize()
+		node.EncodedSize()
 	}
 }
 
@@ -164,15 +164,15 @@ func BenchmarkNode_WriteBytes(b *testing.B) {
 		for i := 0; i < sub.N; i++ {
 			var buf bytes.Buffer
 			buf.Reset()
-			_ = node.writeBytes(&buf)
+			_ = node.WriteBytes(&buf)
 		}
 	})
 	b.Run("PreAllocate", func(sub *testing.B) {
 		sub.ReportAllocs()
 		for i := 0; i < sub.N; i++ {
 			var buf bytes.Buffer
-			buf.Grow(node.encodedSize())
-			_ = node.writeBytes(&buf)
+			buf.Grow(node.EncodedSize())
+			_ = node.WriteBytes(&buf)
 		}
 	})
 }

@@ -120,7 +120,7 @@ func (i *Importer) Add(exportNode *ExportNode) error {
 	}
 
 	var buf bytes.Buffer
-	err = node.writeBytes(&buf)
+	err = node.WriteBytes(&buf)
 	if err != nil {
 		return err
 	}

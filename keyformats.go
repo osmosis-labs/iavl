@@ -15,6 +15,7 @@ var (
 	// To clarify:
 	// When I write to key {X} with value V and old value O, we orphan O with <last-version>=time of write
 	// and <first-version> = version O was created at.
+	// TODO: It appears that the value at an orphan object may just be a pointer???? Investigate.
 	orphanKeyFormat = keyformat.NewKeyFormat('o', int64Size, int64Size, hashSize) // o<last-version><first-version><hash>
 
 	// Key Format for making reads and iterates go through a data-locality preserving db.
