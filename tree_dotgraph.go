@@ -45,7 +45,7 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 	ctx := &graphContext{}
 
 	tree.root.hashWithCount()
-	tree.root.traverse(tree, true, func(node *Node) bool {
+	tree.traverse(tree.root, true, func(node *Node) bool {
 		graphNode := &graphNode{
 			Attrs: map[string]string{},
 			Hash:  fmt.Sprintf("%x", node.hash),

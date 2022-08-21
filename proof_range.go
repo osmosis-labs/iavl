@@ -433,7 +433,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	var leafCount = 1 // from left above.
 	var pathCount = 0
 
-	t.root.traverseInRange(t, afterLeft, nil, true, false, false,
+	t.traverseInRange(t.root, afterLeft, nil, true, false, false,
 		func(node *Node) (stop bool) {
 
 			// Track when we diverge from path, or when we've exhausted path,
