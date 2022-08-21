@@ -279,40 +279,6 @@ func (ndb *nodeDB) Has(hash []byte) (bool, error) {
 	return value != nil, nil
 }
 
-// SaveBranch recursively saves all updated descendants of a node.
-// then it computes its hash.
-// A descendant is tracked for whether or not its updated, based on if
-// node.persisted is true.
-// TODO: Make better static guarantee in tree,
-// for what nodes exist in deserialized memory, and just not getting extra nodes
-// and a clear decision criteria between "no branch node", "new branch with as of yet unknown hash"
-func (ndb *nodeDB) SaveBranch(node *Node) []byte {
-	if node.persisted {
-		return node.hash
-	}
-
-	if node.leftNode != nil {
-		node.leftHash = ndb.SaveBranch(node.leftNode)
-	}
-	if node.rightNode != nil {
-		node.rightHash = ndb.SaveBranch(node.rightNode)
-	}
-
-	node._hash()
-	ndb.SaveNode(node)
-
-	// resetBatch only working on generate a genesis block
-	// TODO: What is this?
-	if node.version <= genesisVersion {
-		ndb.resetBatch()
-	}
-	// TODO: This should be deletable? Is it just here for garbage collection purposes?
-	node.leftNode = nil
-	node.rightNode = nil
-
-	return node.hash
-}
-
 // resetBatch reset the db batch, keep low memory used
 func (ndb *nodeDB) resetBatch() error {
 	var err error

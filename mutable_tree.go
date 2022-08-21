@@ -736,7 +736,7 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 		}
 	} else {
 		debug("SAVE TREE %v\n", version)
-		tree.ndb.SaveBranch(tree.root)
+		tree.saveBranch(tree.root)
 		tree.ndb.SaveOrphans(version, tree.orphans)
 		if err := tree.ndb.SaveRoot(tree.root, version); err != nil {
 			return nil, 0, err
@@ -764,6 +764,40 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.unsavedFastNodeRemovals = make(map[string]interface{})
 
 	return tree.Hash(), version, nil
+}
+
+// SaveBranch recursively saves all updated descendants of a node.
+// then it computes its hash.
+// A descendant is tracked for whether or not its updated, based on if
+// node.persisted is true.
+// TODO: Make better static guarantee in tree,
+// for what nodes exist in deserialized memory, and just not getting extra nodes
+// and a clear decision criteria between "no branch node", "new branch with as of yet unknown hash"
+func (tree *MutableTree) saveBranch(node *Node) []byte {
+	if node.persisted {
+		return node.hash
+	}
+
+	if node.leftNode != nil {
+		node.leftHash = tree.saveBranch(node.leftNode)
+	}
+	if node.rightNode != nil {
+		node.rightHash = tree.saveBranch(node.rightNode)
+	}
+
+	node._hash()
+	tree.ndb.SaveNode(node)
+
+	// resetBatch only working on generate a genesis block
+	// TODO: What is this? It should almost certainly be deleted / moved elsewhere.
+	if node.version <= genesisVersion {
+		tree.ndb.resetBatch()
+	}
+	// TODO: This should be deletable? Is it just here for garbage collection purposes?
+	node.leftNode = nil
+	node.rightNode = nil
+
+	return node.hash
 }
 
 func (tree *MutableTree) saveFastNodeVersion() error {
