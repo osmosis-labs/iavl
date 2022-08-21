@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/types"
 	"github.com/cosmos/iavl/utils"
 	"github.com/pkg/errors"
 	dbm "github.com/tendermint/tm-db"
@@ -109,7 +110,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	return node
 }
 
-func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
+func (ndb *nodeDB) GetFastNode(key []byte) (*types.FastNode, error) {
 	if !ndb.hasUpgradedToFastStorage() {
 		return nil, errors.New("storage version is not fast")
 	}
@@ -122,7 +123,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 	}
 
 	if cachedFastNode := ndb.fastNodeCache.Get(key); cachedFastNode != nil {
-		return cachedFastNode.(*FastNode), nil
+		return cachedFastNode.(*types.FastNode), nil
 	}
 
 	// Doesn't exist, load.
@@ -134,7 +135,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, nil
 	}
 
-	fastNode, err := DeserializeFastNode(key, buf)
+	fastNode, err := types.DeserializeFastNode(key, buf)
 	if err != nil {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
@@ -172,14 +173,14 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 }
 
 // SaveNode saves a FastNode to disk and add to cache.
-func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
+func (ndb *nodeDB) SaveFastNode(node *types.FastNode) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	return ndb.saveFastNodeUnlocked(node, true)
 }
 
 // SaveNode saves a FastNode to disk without adding to cache.
-func (ndb *nodeDB) SaveFastNodeNoCache(node *FastNode) error {
+func (ndb *nodeDB) SaveFastNodeNoCache(node *types.FastNode) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	return ndb.saveFastNodeUnlocked(node, false)
@@ -237,20 +238,20 @@ func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
 }
 
 // SaveNode saves a FastNode to disk.
-func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) error {
-	if node.key == nil {
+func (ndb *nodeDB) saveFastNodeUnlocked(node *types.FastNode, shouldAddToCache bool) error {
+	if node.GetKey() == nil {
 		return fmt.Errorf("FastNode cannot have a nil value for key")
 	}
 
 	// Save node bytes to db.
 	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	buf.Grow(node.EncodedSize())
 
-	if err := node.writeBytes(&buf); err != nil {
+	if err := node.WriteBytes(&buf); err != nil {
 		return fmt.Errorf("error while writing fastnode bytes. Err: %w", err)
 	}
 
-	if err := ndb.batch.Set(getFastNodeKey(node.key), buf.Bytes()); err != nil {
+	if err := ndb.batch.Set(getFastNodeKey(node.GetKey()), buf.Bytes()); err != nil {
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
 	if shouldAddToCache {
@@ -424,13 +425,13 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 	// Delete fast node entries
 	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
 		key := keyWithPrefix[1:]
-		fastNode, err := DeserializeFastNode(key, v)
+		fastNode, err := types.DeserializeFastNode(key, v)
 
 		if err != nil {
 			return err
 		}
 
-		if version <= fastNode.versionLastUpdatedAt {
+		if version <= fastNode.GetVersionLastUpdatedAt() {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}

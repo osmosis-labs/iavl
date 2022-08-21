@@ -1,4 +1,4 @@
-package iavl
+package types
 
 import (
 	"io"
@@ -54,13 +54,21 @@ func (fn *FastNode) GetKey() []byte {
 	return fn.key
 }
 
-func (fn *FastNode) encodedSize() int {
+func (fn *FastNode) GetValue() []byte {
+	return fn.value
+}
+
+func (fn *FastNode) GetVersionLastUpdatedAt() int64 {
+	return fn.versionLastUpdatedAt
+}
+
+func (fn *FastNode) EncodedSize() int {
 	n := utils.EncodeVarintSize(fn.versionLastUpdatedAt) + utils.EncodeBytesSize(fn.value)
 	return n
 }
 
 // writeBytes writes the FastNode as a serialized byte slice to the supplied io.Writer.
-func (fn *FastNode) writeBytes(w io.Writer) error {
+func (fn *FastNode) WriteBytes(w io.Writer) error {
 	if fn == nil {
 		return errors.New("cannot write nil node")
 	}

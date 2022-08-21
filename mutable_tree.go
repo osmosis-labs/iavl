@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cosmos/iavl/types"
 	"github.com/pkg/errors"
 
 	dbm "github.com/tendermint/tm-db"
@@ -26,13 +27,13 @@ var ErrVersionDoesNotExist = errors.New("version does not exist")
 //
 // The inner ImmutableTree should not be used directly by callers.
 type MutableTree struct {
-	*ImmutableTree                                  // The current, working tree.
-	lastSaved                *ImmutableTree         // The most recently saved tree.
-	orphans                  map[string]int64       // Nodes removed by changes to working tree.
-	versions                 map[int64]bool         // The previous, saved versions of the tree.
-	allRootLoaded            bool                   // Whether all roots are loaded or not(by LazyLoadVersion)
-	unsavedFastNodeAdditions map[string]*FastNode   // FastNodes that have not yet been saved to disk
-	unsavedFastNodeRemovals  map[string]interface{} // FastNodes that have not yet been removed from disk
+	*ImmutableTree                                      // The current, working tree.
+	lastSaved                *ImmutableTree             // The most recently saved tree.
+	orphans                  map[string]int64           // Nodes removed by changes to working tree.
+	versions                 map[int64]bool             // The previous, saved versions of the tree.
+	allRootLoaded            bool                       // Whether all roots are loaded or not(by LazyLoadVersion)
+	unsavedFastNodeAdditions map[string]*types.FastNode // FastNodes that have not yet been saved to disk
+	unsavedFastNodeRemovals  map[string]interface{}     // FastNodes that have not yet been removed from disk
 	ndb                      *nodeDB
 
 	mtx sync.Mutex
@@ -54,7 +55,7 @@ func NewMutableTreeWithOpts(db dbm.DB, cacheSize int, opts *Options) (*MutableTr
 		orphans:                  map[string]int64{},
 		versions:                 map[int64]bool{},
 		allRootLoaded:            false,
-		unsavedFastNodeAdditions: make(map[string]*FastNode),
+		unsavedFastNodeAdditions: make(map[string]*types.FastNode),
 		unsavedFastNodeRemovals:  make(map[string]interface{}),
 		ndb:                      ndb,
 	}, nil
@@ -140,7 +141,7 @@ func (t *MutableTree) Get(key []byte) []byte {
 	}
 
 	if fastNode, ok := t.unsavedFastNodeAdditions[string(key)]; ok {
-		return fastNode.value
+		return fastNode.GetValue()
 	}
 
 	return t.ImmutableTree.Get(key)
@@ -194,7 +195,7 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated
 	}
 
 	if tree.ImmutableTree.root == nil {
-		tree.addUnsavedAddition(key, NewFastNode(key, value, tree.version+1))
+		tree.addUnsavedAddition(key, types.NewFastNode(key, value, tree.version+1))
 		tree.ImmutableTree.root = NewNode(key, value, tree.version+1)
 		return nil, updated
 	}
@@ -210,7 +211,7 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 	version := tree.version + 1
 
 	if node.isLeaf() {
-		tree.addUnsavedAddition(key, NewFastNode(key, value, version))
+		tree.addUnsavedAddition(key, types.NewFastNode(key, value, version))
 
 		switch bytes.Compare(key, node.key) {
 		case -1:
@@ -606,7 +607,7 @@ func (tree *MutableTree) enableFastStorageAndCommit() error {
 	itr := NewIterator(nil, nil, true, tree.ImmutableTree)
 	defer itr.Close()
 	for ; itr.Valid(); itr.Next() {
-		if err = tree.ndb.SaveFastNodeNoCache(NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
+		if err = tree.ndb.SaveFastNodeNoCache(types.NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
 			return err
 		}
 	}
@@ -662,7 +663,7 @@ func (tree *MutableTree) Rollback() {
 		tree.ImmutableTree = &ImmutableTree{ndb: tree.ndb, version: 0}
 	}
 	tree.orphans = map[string]int64{}
-	tree.unsavedFastNodeAdditions = map[string]*FastNode{}
+	tree.unsavedFastNodeAdditions = map[string]*types.FastNode{}
 	tree.unsavedFastNodeRemovals = map[string]interface{}{}
 }
 
@@ -676,8 +677,8 @@ func (tree *MutableTree) GetVersioned(key []byte, version int64) []byte {
 				return nil
 			}
 
-			if fastNode != nil && fastNode.versionLastUpdatedAt <= version {
-				return fastNode.value
+			if fastNode != nil && fastNode.GetVersionLastUpdatedAt() <= version {
+				return fastNode.GetValue()
 			}
 		}
 		t, err := tree.GetImmutable(version)
@@ -759,7 +760,7 @@ func (tree *MutableTree) SaveVersion() ([]byte, int64, error) {
 	tree.ImmutableTree = tree.ImmutableTree.clone()
 	tree.lastSaved = tree.ImmutableTree.clone()
 	tree.orphans = map[string]int64{}
-	tree.unsavedFastNodeAdditions = make(map[string]*FastNode)
+	tree.unsavedFastNodeAdditions = make(map[string]*types.FastNode)
 	tree.unsavedFastNodeRemovals = make(map[string]interface{})
 
 	return tree.Hash(), version, nil
@@ -780,7 +781,7 @@ func (tree *MutableTree) saveFastNodeVersion() error {
 	return nil
 }
 
-func (tree *MutableTree) getUnsavedFastNodeAdditions() map[string]*FastNode {
+func (tree *MutableTree) getUnsavedFastNodeAdditions() map[string]*types.FastNode {
 	return tree.unsavedFastNodeAdditions
 }
 
@@ -789,7 +790,7 @@ func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]interface{} {
 	return tree.unsavedFastNodeRemovals
 }
 
-func (tree *MutableTree) addUnsavedAddition(key []byte, node *FastNode) {
+func (tree *MutableTree) addUnsavedAddition(key []byte, node *types.FastNode) {
 	delete(tree.unsavedFastNodeRemovals, string(key))
 	tree.unsavedFastNodeAdditions[string(key)] = node
 }
