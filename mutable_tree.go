@@ -170,6 +170,8 @@ func (t *MutableTree) Iterate(fn func(key []byte, value []byte) bool) (stopped b
 	}
 
 	itr := NewUnsavedFastIterator(nil, nil, true, t.ndb, t.unsavedFastNodeAdditions, t.unsavedFastNodeRemovals)
+	defer itr.Close()
+
 	for ; itr.Valid(); itr.Next() {
 		if fn(itr.Key(), itr.Value()) {
 			return true
