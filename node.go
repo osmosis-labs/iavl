@@ -108,8 +108,18 @@ func MakeNode(buf []byte) (*Node, error) {
 	return node, nil
 }
 
+// GetKey returns a node's key
+// Implements cache.Node interface.
 func (n *Node) GetKey() []byte {
 	return n.hash
+}
+
+// GetFullSize returns the number of bytes a node occupies in memory.
+// Implements cache.Node interface. It is needed to enable cache's bytes limit decorator.
+// Currently, node cache does not utilize the bytes limit decorator. As a result, the implementation
+// is not provided yet.
+func (n *Node) GetFullSize() int {
+	panic("not implemented")
 }
 
 // String returns a string representation of the node.

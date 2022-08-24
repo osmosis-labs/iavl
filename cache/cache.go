@@ -1,96 +1,72 @@
 package cache
 
-import (
-	"container/list"
-)
+import "container/list"
 
 // Node represents a node eligible for caching.
 type Node interface {
+	// GetKey returns a node's key
 	GetKey() []byte
+
+	// GetFullSize returns the number of bytes a node occupies in memory.
+	GetFullSize() int
 }
+
+// Type represents cache type. All types
+// are defined below.
+type Type int
+
+const (
+	LRU             Type = 0
+	LRU_node_limit  Type = 1
+	LRU_bytes_limit Type = 2
+)
 
 // Cache is an in-memory structure to persist nodes for quick access.
 type Cache interface {
-	// Adds node to cache. If full and had to remove the oldest element,
-	// returns the oldest, otherwise nil.
-	Add(node Node) Node
-
-	// Returns Node for the key, if exists. nil otherwise.
+	// Get returns Node for the key, if exists. nil otherwise.
 	Get(key []byte) Node
+
+	// GetType returns cache's type.
+	GetType() Type
 
 	// Has returns true if node with key exists in cache, false otherwise.
 	Has(key []byte) bool
 
-	// Remove removes node with key from cache. The removed node is returned.
-	// if not in cache, return nil.
-	Remove(key []byte) Node
-
 	// Len returns the cache length.
 	Len() int
+
+	// add adds node to cache.
+	add(node Node)
+
+	// get returns list element corresponding to the key
+	get(key []byte) *list.Element
+
+	// remove removes node with key from cache. The removed node is returned.
+	// if not in cache, return nil.
+	remove(e *list.Element) Node
+
+	// isOverLimit returns true if cache limit has been reached, false otherwise.
+	isOverLimit() bool
+
+	// getOldsest returns the oldest cache element.
+	getOldest() *list.Element
 }
 
-// lruCache is an LRU cache implementation.
-type lruCache struct {
-	dict       map[string]*list.Element // FastNode cache.
-	cacheLimit int                      // FastNode cache size limit in elements.
-	ll         *list.List               // LRU queue of cache elements. Used for deletion.
-}
+// Add adds node to cache. If adding node, exceeds cache limit,
+// removes old elements from cache up until the limit is not exceeded anymore.
+func Add(cache Cache, node Node) {
+	cache.add(node)
 
-var _ Cache = (*lruCache)(nil)
-
-func New(cacheLimit int) Cache {
-	return &lruCache{
-		dict:       make(map[string]*list.Element),
-		cacheLimit: cacheLimit,
-		ll:         list.New(),
+	for cache.isOverLimit() {
+		cache.remove(cache.getOldest())
 	}
 }
 
-func (c *lruCache) Add(node Node) Node {
-	if e, exists := c.dict[string(node.GetKey())]; exists {
-		c.ll.MoveToFront(e)
-		old := e.Value
-		e.Value = node
-		return old.(Node)
-	}
-
-	elem := c.ll.PushFront(node)
-	c.dict[string(node.GetKey())] = elem
-
-	if c.ll.Len() > c.cacheLimit {
-		oldest := c.ll.Back()
-
-		return c.remove(oldest)
-	}
-	return nil
-}
-
-func (nc *lruCache) Get(key []byte) Node {
-	if ele, hit := nc.dict[string(key)]; hit {
-		nc.ll.MoveToFront(ele)
-		return ele.Value.(Node)
+// Remove removed node with key from cache if exists and returns the
+// removed node, nil otherwise.
+func Remove(cache Cache, key []byte) Node {
+	if elem := cache.get(key); elem != nil {
+		return cache.remove(elem)
 	}
 	return nil
-}
-
-func (c *lruCache) Has(key []byte) bool {
-	_, exists := c.dict[string(key)]
-	return exists
-}
-
-func (nc *lruCache) Len() int {
-	return nc.ll.Len()
-}
-
-func (c *lruCache) Remove(key []byte) Node {
-	if elem, exists := c.dict[string(key)]; exists {
-		return c.remove(elem)
-	}
-	return nil
-}
-
-func (c *lruCache) remove(e *list.Element) Node {
-	removed := c.ll.Remove(e).(Node)
-	delete(c.dict, string(removed.GetKey()))
-	return removed
 }

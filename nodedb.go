@@ -29,7 +29,7 @@ const (
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue    = "1.1.0"
-	fastNodeCacheLimit = 100000
+	fastNodeCacheLimitBytes    = 100 * 1024 * 1024
 )
 
 var (
@@ -96,8 +96,8 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 		batch:          db.NewBatch(),
 		opts:           *opts,
 		latestVersion:  0, // initially invalid
-		nodeCache:      cache.New(cacheSize),
-		fastNodeCache:  cache.New(fastNodeCacheLimit),
+		nodeCache:      cache.NewWithNodeLimit(cacheSize),
+		fastNodeCache:  cache.NewWithBytesLimit(fastNodeCacheLimitBytes),
 		versionReaders: make(map[int64]uint32, 8),
 		storageVersion: string(storeVersion),
 	}
@@ -134,7 +134,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 
 	node.hash = hash
 	node.persisted = true
-	ndb.nodeCache.Add(node)
+	cache.Add(ndb.nodeCache, node)
 
 	return node
 }
@@ -169,7 +169,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
 
-	ndb.fastNodeCache.Add(fastNode)
+	cache.Add(ndb.fastNodeCache, fastNode)
 	return fastNode, nil
 }
 
@@ -198,7 +198,7 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 	}
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
-	ndb.nodeCache.Add(node)
+	cache.Add(ndb.nodeCache, node)
 }
 
 // SaveNode saves a FastNode to disk and add to cache.
@@ -284,7 +284,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
 	if shouldAddToCache {
-		ndb.fastNodeCache.Add(node)
+		cache.Add(ndb.fastNodeCache, node)
 	}
 	return nil
 }
@@ -421,7 +421,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.nodeCache.Remove(hash)
+			cache.Remove(ndb.nodeCache, hash)
 		} else if toVersion >= version-1 {
 			if err := ndb.batch.Delete(key); err != nil {
 				return err
@@ -459,7 +459,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}
-			ndb.fastNodeCache.Remove(key)
+			cache.Remove(ndb.fastNodeCache, key)
 		}
 		return nil
 	})
@@ -510,7 +510,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 				if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 					panic(err)
 				}
-				ndb.nodeCache.Remove(hash)
+				cache.Remove(ndb.nodeCache, hash)
 			} else {
 				ndb.saveOrphan(hash, from, predecessor)
 			}
@@ -541,7 +541,7 @@ func (ndb *nodeDB) DeleteFastNode(key []byte) error {
 	if err := ndb.batch.Delete(ndb.fastNodeKey(key)); err != nil {
 		return err
 	}
-	ndb.fastNodeCache.Remove(key)
+	cache.Remove(ndb.fastNodeCache, key)
 	return nil
 }
 
@@ -569,7 +569,7 @@ func (ndb *nodeDB) deleteNodesFrom(version int64, hash []byte) error {
 			return err
 		}
 
-		ndb.nodeCache.Remove(hash)
+		cache.Remove(ndb.nodeCache, hash)
 	}
 
 	return nil
@@ -630,7 +630,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 			if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
-			ndb.nodeCache.Remove(hash)
+			cache.Remove(ndb.nodeCache, hash)
 		} else {
 			debug("MOVE predecessor:%v fromVersion:%v toVersion:%v %X\n", predecessor, fromVersion, toVersion, hash)
 			ndb.saveOrphan(hash, fromVersion, predecessor)

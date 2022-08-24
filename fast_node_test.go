@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/cosmos/iavl/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,6 +54,30 @@ func TestFastNode_encode_decode(t *testing.T) {
 				tc.node.value = []byte{}
 			}
 			require.Equal(t, tc.node, node)
+		})
+	}
+}
+
+func TestFastNode_GetFullSize(t *testing.T) {
+	testcases := map[string]struct {
+		node         *FastNode
+		expectedSize int
+	}{
+		"empty": {
+			&FastNode{},
+			common.UintSizeBytes*6 + common.Uint64Size,
+		},
+		"with data": {&FastNode{
+			key:                  []byte{0x4},
+			versionLastUpdatedAt: 1,
+			value:                []byte{0x2, 0x3},
+		}, common.UintSizeBytes*6 + common.Uint64Size + 1 + 2},
+	}
+	for name, tc := range testcases {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			size := tc.node.GetFullSize()
+			require.Equal(t, tc.expectedSize, size)
 		})
 	}
 }
