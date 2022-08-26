@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"runtime"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/cosmos/iavl/types"
 	"github.com/pkg/errors"
@@ -205,11 +203,15 @@ func (tree *MutableTree) set(key []byte, value []byte) (orphans []*Node, updated
 	return orphans, updated
 }
 
+// Updated is for an edit to an existing leaf. In this case, we just produce orphans for
+// intermediate nodes, but do not have any rebalance operations. (As tree structure remains the same)
+// NOTE: This function does not set the hashes for updated nodes, this must be done in the caller
 func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orphans *[]*Node) (
 	newSelf *Node, updated bool,
 ) {
 	version := tree.version + 1
 
+	// base case, node is a leaf
 	if node.isLeaf() {
 		tree.addUnsavedAddition(key, types.NewFastNode(key, value, version))
 
@@ -236,25 +238,31 @@ func (tree *MutableTree) recursiveSet(node *Node, key []byte, value []byte, orph
 			*orphans = append(*orphans, node)
 			return NewNode(key, value, version), true
 		}
-	} else {
-		*orphans = append(*orphans, node)
-		node = node.clone(version)
-
-		if bytes.Compare(key, node.key) < 0 {
-			node.leftNode, updated = tree.recursiveSet(tree.ImmutableTree.getLeftChild(node), key, value, orphans)
-			node.leftHash = nil // leftHash is yet unknown
-		} else {
-			node.rightNode, updated = tree.recursiveSet(tree.ImmutableTree.getRightChild(node), key, value, orphans)
-			node.rightHash = nil // rightHash is yet unknown
-		}
-
-		if updated {
-			return node, updated
-		}
-		tree.setDepthAndSize(node)
-		newNode := tree.balance(node, orphans)
-		return newNode, updated
 	}
+	// We are in a branch of the tree
+	// 1) We have to set something in the sub-tree underneath this node, therefore
+	//    this node becomes an orphan. Append to orphans
+	*orphans = append(*orphans, node)
+	// 2) Begin constructing new node that we replace this with here.
+	node = node.clone(version)
+
+	// Determine if leaf we are setting is in the left subtree or right subtree of this node.
+	// do a recursive set on that child accordingly, and set the correct left child / right child.
+	if bytes.Compare(key, node.key) < 0 {
+		node.leftNode, updated = tree.recursiveSet(tree.ImmutableTree.getLeftChild(node), key, value, orphans)
+		node.leftHash = nil // leftHash is yet unknown
+	} else {
+		node.rightNode, updated = tree.recursiveSet(tree.ImmutableTree.getRightChild(node), key, value, orphans)
+		node.rightHash = nil // rightHash is yet unknown
+	}
+
+	// If we have an in-place edit, no need to re-balance
+	if updated {
+		return node, updated
+	}
+	tree.setDepthAndSize(node)
+	newNode := tree.balance(node, orphans)
+	return newNode, updated
 }
 
 // Remove removes a key from the working tree. The given key byte slice should not be modified
@@ -515,115 +523,6 @@ func (tree *MutableTree) LoadVersionForOverwriting(targetVersion int64) (int64, 
 // need to overwrite fast nodes due to mismatch with live state.
 func (tree *MutableTree) IsUpgradeable() bool {
 	return !tree.ndb.hasUpgradedToFastStorage() || tree.ndb.shouldForceFastStorageUpgrade()
-}
-
-// enableFastStorageAndCommitIfNotEnabled if nodeDB doesn't mark fast storage as enabled, enable it, and commit the update.
-// Checks whether the fast cache on disk matches latest live state. If not, deletes all existing fast nodes and repopulates them
-// from latest tree.
-func (tree *MutableTree) enableFastStorageAndCommitIfNotEnabled() (bool, error) {
-	shouldForceUpdate := tree.ndb.shouldForceFastStorageUpgrade()
-	isFastStorageEnabled := tree.ndb.hasUpgradedToFastStorage()
-
-	if !tree.IsUpgradeable() {
-		return false, nil
-	}
-
-	if isFastStorageEnabled && shouldForceUpdate {
-		// If there is a mismatch between which fast nodes are on disk and the live state due to temporary
-		// downgrade and subsequent re-upgrade, we cannot know for sure which fast nodes have been removed while downgraded,
-		// Therefore, there might exist stale fast nodes on disk. As a result, to avoid persisting the stale state, it might
-		// be worth to delete the fast nodes from disk.
-		fastItr := NewFastIterator(nil, nil, true, tree.ndb)
-		defer fastItr.Close()
-		for ; fastItr.Valid(); fastItr.Next() {
-			if err := tree.ndb.DeleteFastNode(fastItr.Key()); err != nil {
-				return false, err
-			}
-		}
-	}
-
-	// Force garbage collection before we proceed to enabling fast storage.
-	runtime.GC()
-
-	if err := tree.enableFastStorageAndCommit(); err != nil {
-		tree.ndb.storageVersion = defaultStorageVersionValue
-		return false, err
-	}
-	return true, nil
-}
-
-func (tree *MutableTree) enableFastStorageAndCommitLocked() error {
-	tree.mtx.Lock()
-	defer tree.mtx.Unlock()
-	return tree.enableFastStorageAndCommit()
-}
-
-func (tree *MutableTree) enableFastStorageAndCommit() error {
-	debug("enabling fast storage, might take a while.")
-	var err error
-	defer func() {
-		if err != nil {
-			debug("failed to enable fast storage: %v\n", err)
-		} else {
-			debug("fast storage is enabled.")
-		}
-	}()
-
-	// We start a new thread to keep on checking if we are above 4GB, and if so garbage collect.
-	// This thread only lasts during the fast node migration.
-	// This is done to keep RAM usage down.
-	done := make(chan struct{})
-	defer func() {
-		done <- struct{}{}
-		close(done)
-	}()
-
-	go func() {
-		timer := time.NewTimer(time.Second)
-		var m runtime.MemStats
-
-		for {
-			// Sample the current memory usage
-			runtime.ReadMemStats(&m)
-
-			if m.Alloc > 4*1024*1024*1024 {
-				// If we are using more than 4GB of memory, we should trigger garbage collection
-				// to free up some memory.
-				runtime.GC()
-			}
-
-			select {
-			case <-timer.C:
-				timer.Reset(time.Second)
-			case <-done:
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return
-			}
-		}
-	}()
-
-	itr := NewIterator(nil, nil, true, tree.ImmutableTree)
-	defer itr.Close()
-	for ; itr.Valid(); itr.Next() {
-		if err = tree.ndb.SaveFastNodeNoCache(types.NewFastNode(itr.Key(), itr.Value(), tree.version)); err != nil {
-			return err
-		}
-	}
-
-	if err = itr.Error(); err != nil {
-		return err
-	}
-
-	if err = tree.ndb.setFastStorageVersionToBatch(); err != nil {
-		return err
-	}
-
-	if err = tree.ndb.Commit(); err != nil {
-		return err
-	}
-	return nil
 }
 
 // GetImmutable loads an ImmutableTree at a given version for querying. The returned tree is

@@ -237,21 +237,6 @@ func (ndb *nodeDB) hasUpgradedToFastStorage() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 
-// Returns true if the upgrade to fast storage has occurred but it does not match the live state, false otherwise.
-// When the live state is not matched, we must force reupgrade.
-// We determine this by checking the version of the live state and the version of the live state when
-// latest storage was updated on disk the last time.
-func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
-	versions := strings.Split(ndb.storageVersion, fastStorageVersionDelimiter)
-
-	if len(versions) == 2 {
-		if versions[1] != strconv.Itoa(int(ndb.getLatestVersion())) {
-			return true
-		}
-	}
-	return false
-}
-
 // SaveNode saves a FastNode to disk.
 func (ndb *nodeDB) saveFastNodeUnlocked(node *types.FastNode, shouldAddToCache bool) error {
 	if node.GetKey() == nil {

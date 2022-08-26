@@ -3,6 +3,16 @@
 
 ## Unreleased
 
+* [\#TBD](https://github.com/cosmos/iavl/pull/440) Shuffles a lot of the IAVL logic. The following moves to packages:
+  - keyformat.go & keyformat_test.go -> iavl/keyformat
+  - fastnode.go & fastnode_test.go -> iavl/types. Types package should encompass node.go as well.- 
+  - encoding.go & encoding_test.go -> iavl/utils
+  - Move fastnode migration code from nodedb.go & mutable_tree.go to fastnode_migration.go
+  - Move tree-based methods on node.go to immutable_tree.go
+  - Move keyformat definitions & getters from nodedb to keyformats.go
+  - Move testing-only nodedb methods to be in testutils_test.go
+  - Make helper methods to de-duplicate common iterator usage patterns within IAVL.
+
 ## 0.17.2 (November 13, 2021)
 
 ### Improvements
