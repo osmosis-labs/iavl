@@ -14,22 +14,6 @@ import (
 	"github.com/cosmos/iavl/mock"
 )
 
-func BenchmarkNodeKey(b *testing.B) {
-	ndb := &nodeDB{}
-	hashes := makeHashes(b, 2432325)
-	for i := 0; i < b.N; i++ {
-		ndb.nodeKey(hashes[i])
-	}
-}
-
-func BenchmarkOrphanKey(b *testing.B) {
-	ndb := &nodeDB{}
-	hashes := makeHashes(b, 2432325)
-	for i := 0; i < b.N; i++ {
-		ndb.orphanKey(1234, 1239, hashes[i])
-	}
-}
-
 func TestNewNoDbStorage_StorageVersionInDb_Success(t *testing.T) {
 	const expectedVersion = defaultStorageVersionValue
 

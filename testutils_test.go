@@ -11,6 +11,7 @@ import (
 	"math/rand"
 
 	cmn "github.com/cosmos/iavl/common"
+	"github.com/cosmos/iavl/utils"
 	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -27,12 +28,12 @@ func randstr(length int) string {
 
 func i2b(i int) []byte {
 	buf := new(bytes.Buffer)
-	encodeVarint(buf, int64(i))
+	utils.EncodeVarint(buf, int64(i))
 	return buf.Bytes()
 }
 
 func b2i(bz []byte) int {
-	i, _, err := decodeVarint(bz)
+	i, _, err := utils.DecodeVarint(bz)
 	if err != nil {
 		panic(err)
 	}
@@ -42,6 +43,14 @@ func b2i(bz []byte) int {
 // Construct a MutableTree
 func getTestTree(cacheSize int) (*MutableTree, error) {
 	return NewMutableTreeWithOpts(dbm.NewMemDB(), cacheSize, nil)
+}
+
+// Only used in testing...
+func lmd(t *ImmutableTree, node *Node) *Node {
+	if node.isLeaf() {
+		return node
+	}
+	return lmd(t, t.getLeftChild(node))
 }
 
 // Convenience for a new node
@@ -59,12 +68,13 @@ func N(l, r interface{}) *Node {
 	}
 
 	n := &Node{
-		key:       right.lmd(nil).key,
+		key:       lmd(nil, right).key,
 		value:     nil,
 		leftNode:  left,
 		rightNode: right,
 	}
-	n.calcHeightAndSize(nil)
+	var tree *ImmutableTree = nil
+	tree.setDepthAndSize(n)
 	return n
 }
 
@@ -79,7 +89,7 @@ func T(n *Node) *MutableTree {
 
 // Convenience for simple printing of keys & tree structure
 func P(n *Node) string {
-	if n.height == 0 {
+	if n.subtreeHeight == 0 {
 		return fmt.Sprintf("%v", b2i(n.key))
 	}
 	return fmt.Sprintf("(%v %v)", P(n.leftNode), P(n.rightNode))
@@ -301,6 +311,69 @@ func assertIterator(t *testing.T, itr dbm.Iterator, mirror [][]string, ascending
 		startIdx += increment
 		mirrorIdx++
 	}
+}
+
+func getAllNodes(t *testing.T, ndb *nodeDB) []*Node {
+	nodes := []*Node{}
+
+	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
+		nodes = append(nodes, node)
+		return nil
+	})
+
+	require.NoError(t, err)
+
+	return nodes
+}
+
+// Utility and test functions
+
+func (ndb *nodeDB) leafNodes() ([]*Node, error) {
+	leaves := []*Node{}
+
+	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
+		if node.isLeaf() {
+			leaves = append(leaves, node)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return leaves, nil
+}
+
+func (ndb *nodeDB) orphans() ([][]byte, error) {
+	orphans := [][]byte{}
+
+	err := ndb.traverseOrphans(func(k, v []byte) error {
+		orphans = append(orphans, v)
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return orphans, nil
+}
+
+// Not efficient.
+// NOTE: DB cannot implement Size() because
+// mutations are not always synchronous.
+func (ndb *nodeDB) size() int {
+	size := 0
+	err := ndb.traverse(func(k, v []byte) error {
+		size++
+		return nil
+	})
+
+	if err != nil {
+		return -1
+	}
+	return size
 }
 
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"math"
 	"sort"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/cosmos/iavl/cache"
+	"github.com/cosmos/iavl/types"
+	"github.com/cosmos/iavl/utils"
 	"github.com/pkg/errors"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -29,38 +32,7 @@ const (
 	// Using semantic versioning: https://semver.org/
 	defaultStorageVersionValue = "1.0.0"
 	fastStorageVersionValue    = "1.1.0"
-	fastNodeCacheLimit = 100000
-)
-
-var (
-	// All node keys are prefixed with the byte 'n'. This ensures no collision is
-	// possible with the other keys, and makes them easier to traverse. They are indexed by the node hash.
-	nodeKeyFormat = NewKeyFormat('n', hashSize) // n<hash>
-
-	// Orphans are keyed in the database by their expected lifetime.
-	// The first number represents the *last* version at which the orphan needs
-	// to exist, while the second number represents the *earliest* version at
-	// which it is expected to exist - which starts out by being the version
-	// of the node being orphaned.
-	// To clarify:
-	// When I write to key {X} with value V and old value O, we orphan O with <last-version>=time of write
-	// and <first-version> = version O was created at.
-	orphanKeyFormat = NewKeyFormat('o', int64Size, int64Size, hashSize) // o<last-version><first-version><hash>
-
-	// Key Format for making reads and iterates go through a data-locality preserving db.
-	// The value at an entry will list what version it was written to.
-	// Then to query values, you first query state via this fast method.
-	// If its present, then check the tree version. If tree version >= result_version,
-	// return result_version. Else, go through old (slow) IAVL get method that walks through tree.
-	fastKeyFormat = NewKeyFormat('f', 0) // f<keystring>
-
-	// Key Format for storing metadata about the chain such as the vesion number.
-	// The value at an entry will be in a variable format and up to the caller to
-	// decide how to parse.
-	metadataKeyFormat = NewKeyFormat('m', 0) // v<keystring>
-
-	// Root nodes are indexed separately by their version
-	rootKeyFormat = NewKeyFormat('r', int64Size) // r<version>
+	fastNodeCacheLimit         = 100000
 )
 
 var (
@@ -119,15 +91,15 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	}
 
 	// Doesn't exist, load.
-	buf, err := ndb.db.Get(ndb.nodeKey(hash))
+	buf, err := ndb.db.Get(getNodeKey(hash))
 	if err != nil {
 		panic(fmt.Sprintf("can't get node %X: %v", hash, err))
 	}
 	if buf == nil {
-		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %x", hash, ndb.nodeKey(hash)))
+		panic(fmt.Sprintf("Value missing for hash %x corresponding to nodeKey %x", hash, getNodeKey(hash)))
 	}
 
-	node, err := MakeNode(buf)
+	node, err := DeserializeNode(buf)
 	if err != nil {
 		panic(fmt.Sprintf("Error reading Node. bytes: %x, error: %v", buf, err))
 	}
@@ -139,7 +111,7 @@ func (ndb *nodeDB) GetNode(hash []byte) *Node {
 	return node
 }
 
-func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
+func (ndb *nodeDB) GetFastNode(key []byte) (*types.FastNode, error) {
 	if !ndb.hasUpgradedToFastStorage() {
 		return nil, errors.New("storage version is not fast")
 	}
@@ -152,11 +124,11 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 	}
 
 	if cachedFastNode := ndb.fastNodeCache.Get(key); cachedFastNode != nil {
-		return cachedFastNode.(*FastNode), nil
+		return cachedFastNode.(*types.FastNode), nil
 	}
 
 	// Doesn't exist, load.
-	buf, err := ndb.db.Get(ndb.fastNodeKey(key))
+	buf, err := ndb.db.Get(getFastNodeKey(key))
 	if err != nil {
 		return nil, fmt.Errorf("can't get FastNode %X: %w", key, err)
 	}
@@ -164,7 +136,7 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 		return nil, nil
 	}
 
-	fastNode, err := DeserializeFastNode(key, buf)
+	fastNode, err := types.DeserializeFastNode(key, buf)
 	if err != nil {
 		return nil, fmt.Errorf("error reading FastNode. bytes: %x, error: %w", buf, err)
 	}
@@ -175,9 +147,6 @@ func (ndb *nodeDB) GetFastNode(key []byte) (*FastNode, error) {
 
 // SaveNode saves a node to disk.
 func (ndb *nodeDB) SaveNode(node *Node) {
-	ndb.mtx.Lock()
-	defer ndb.mtx.Unlock()
-
 	if node.hash == nil {
 		panic("Expected to find node.hash, but none found.")
 	}
@@ -185,31 +154,48 @@ func (ndb *nodeDB) SaveNode(node *Node) {
 		panic("Shouldn't be calling save on an already persisted node.")
 	}
 
-	// Save node bytes to db.
-	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	ndb.mtx.Lock()
+	defer ndb.mtx.Unlock()
 
-	if err := node.writeBytes(&buf); err != nil {
-		panic(err)
-	}
+	ndb.writeObjectUnlocked(getNodeKey(node.hash), node)
 
-	if err := ndb.batch.Set(ndb.nodeKey(node.hash), buf.Bytes()); err != nil {
-		panic(err)
-	}
 	debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
+
 	ndb.nodeCache.Add(node)
 }
 
+type dbWriteableI interface {
+	EncodedSize() int
+	WriteBytes(w io.Writer) error
+}
+
+// writeObject writes an object to the growing DB write batch, that saves on commit.
+// All errors panic
+// The caller _must_ have a mutex lock on nodeDB set.
+func (ndb *nodeDB) writeObjectUnlocked(key []byte, obj dbWriteableI) {
+	// Save node bytes to db.
+	var buf bytes.Buffer
+	buf.Grow(obj.EncodedSize())
+
+	if err := obj.WriteBytes(&buf); err != nil {
+		panic(err)
+	}
+
+	if err := ndb.batch.Set(key, buf.Bytes()); err != nil {
+		panic(err)
+	}
+}
+
 // SaveNode saves a FastNode to disk and add to cache.
-func (ndb *nodeDB) SaveFastNode(node *FastNode) error {
+func (ndb *nodeDB) SaveFastNode(node *types.FastNode) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	return ndb.saveFastNodeUnlocked(node, true)
 }
 
 // SaveNode saves a FastNode to disk without adding to cache.
-func (ndb *nodeDB) SaveFastNodeNoCache(node *FastNode) error {
+func (ndb *nodeDB) SaveFastNodeNoCache(node *types.FastNode) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
 	return ndb.saveFastNodeUnlocked(node, false)
@@ -251,38 +237,14 @@ func (ndb *nodeDB) hasUpgradedToFastStorage() bool {
 	return ndb.getStorageVersion() >= fastStorageVersionValue
 }
 
-// Returns true if the upgrade to fast storage has occurred but it does not match the live state, false otherwise.
-// When the live state is not matched, we must force reupgrade.
-// We determine this by checking the version of the live state and the version of the live state when
-// latest storage was updated on disk the last time.
-func (ndb *nodeDB) shouldForceFastStorageUpgrade() bool {
-	versions := strings.Split(ndb.storageVersion, fastStorageVersionDelimiter)
-
-	if len(versions) == 2 {
-		if versions[1] != strconv.Itoa(int(ndb.getLatestVersion())) {
-			return true
-		}
-	}
-	return false
-}
-
 // SaveNode saves a FastNode to disk.
-func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) error {
-	if node.key == nil {
-		return fmt.Errorf("FastNode cannot have a nil value for key")
+func (ndb *nodeDB) saveFastNodeUnlocked(node *types.FastNode, shouldAddToCache bool) error {
+	if node.GetKey() == nil {
+		return fmt.Errorf("a FastNode cannot have a nil value for key")
 	}
 
-	// Save node bytes to db.
-	var buf bytes.Buffer
-	buf.Grow(node.encodedSize())
+	ndb.writeObjectUnlocked(getFastNodeKey(node.GetKey()), node)
 
-	if err := node.writeBytes(&buf); err != nil {
-		return fmt.Errorf("error while writing fastnode bytes. Err: %w", err)
-	}
-
-	if err := ndb.batch.Set(ndb.fastNodeKey(node.key), buf.Bytes()); err != nil {
-		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
-	}
 	if shouldAddToCache {
 		ndb.fastNodeCache.Add(node)
 	}
@@ -291,7 +253,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 
 // Has checks if a hash exists in the database.
 func (ndb *nodeDB) Has(hash []byte) (bool, error) {
-	key := ndb.nodeKey(hash)
+	key := getNodeKey(hash)
 
 	if ldb, ok := ndb.db.(*dbm.GoLevelDB); ok {
 		exists, err := ldb.DB().Has(key, nil)
@@ -306,35 +268,6 @@ func (ndb *nodeDB) Has(hash []byte) (bool, error) {
 	}
 
 	return value != nil, nil
-}
-
-// SaveBranch saves the given node and all of its descendants.
-// NOTE: This function clears leftNode/rigthNode recursively and
-// calls _hash() on the given node.
-// TODO refactor, maybe use hashWithCount() but provide a callback.
-func (ndb *nodeDB) SaveBranch(node *Node) []byte {
-	if node.persisted {
-		return node.hash
-	}
-
-	if node.leftNode != nil {
-		node.leftHash = ndb.SaveBranch(node.leftNode)
-	}
-	if node.rightNode != nil {
-		node.rightHash = ndb.SaveBranch(node.rightNode)
-	}
-
-	node._hash()
-	ndb.SaveNode(node)
-
-	// resetBatch only working on generate a genesis block
-	if node.version <= genesisVersion {
-		ndb.resetBatch()
-	}
-	node.leftNode = nil
-	node.rightNode = nil
-
-	return node.hash
 }
 
 // resetBatch reset the db batch, keep low memory used
@@ -418,7 +351,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(key); err != nil {
 				return err
 			}
-			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
+			if err = ndb.batch.Delete(getNodeKey(hash)); err != nil {
 				return err
 			}
 			ndb.nodeCache.Remove(hash)
@@ -449,13 +382,13 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 	// Delete fast node entries
 	err = ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
 		key := keyWithPrefix[1:]
-		fastNode, err := DeserializeFastNode(key, v)
+		fastNode, err := types.DeserializeFastNode(key, v)
 
 		if err != nil {
 			return err
 		}
 
-		if version <= fastNode.versionLastUpdatedAt {
+		if version <= fastNode.GetVersionLastUpdatedAt() {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}
@@ -507,7 +440,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 				return err
 			}
 			if from > predecessor {
-				if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
+				if err := ndb.batch.Delete(getNodeKey(hash)); err != nil {
 					panic(err)
 				}
 				ndb.nodeCache.Remove(hash)
@@ -538,7 +471,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 func (ndb *nodeDB) DeleteFastNode(key []byte) error {
 	ndb.mtx.Lock()
 	defer ndb.mtx.Unlock()
-	if err := ndb.batch.Delete(ndb.fastNodeKey(key)); err != nil {
+	if err := ndb.batch.Delete(getFastNodeKey(key)); err != nil {
 		return err
 	}
 	ndb.fastNodeCache.Remove(key)
@@ -565,7 +498,7 @@ func (ndb *nodeDB) deleteNodesFrom(version int64, hash []byte) error {
 	}
 
 	if node.version >= version {
-		if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
+		if err := ndb.batch.Delete(getNodeKey(hash)); err != nil {
 			return err
 		}
 
@@ -594,7 +527,7 @@ func (ndb *nodeDB) saveOrphan(hash []byte, fromVersion, toVersion int64) {
 	if fromVersion > toVersion {
 		panic(fmt.Sprintf("Orphan expires before it comes alive.  %d > %d", fromVersion, toVersion))
 	}
-	key := ndb.orphanKey(fromVersion, toVersion, hash)
+	key := getOrphanKey(fromVersion, toVersion, hash)
 	if err := ndb.batch.Set(key, hash); err != nil {
 		panic(err)
 	}
@@ -627,7 +560,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 		// moving its endpoint to the previous version.
 		if predecessor < fromVersion || fromVersion == toVersion {
 			debug("DELETE predecessor:%v fromVersion:%v toVersion:%v %X\n", predecessor, fromVersion, toVersion, hash)
-			if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
+			if err := ndb.batch.Delete(getNodeKey(hash)); err != nil {
 				return err
 			}
 			ndb.nodeCache.Remove(hash)
@@ -637,22 +570,6 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 		}
 		return nil
 	})
-}
-
-func (ndb *nodeDB) nodeKey(hash []byte) []byte {
-	return nodeKeyFormat.KeyBytes(hash)
-}
-
-func (ndb *nodeDB) fastNodeKey(key []byte) []byte {
-	return fastKeyFormat.KeyBytes(key)
-}
-
-func (ndb *nodeDB) orphanKey(fromVersion, toVersion int64, hash []byte) []byte {
-	return orphanKeyFormat.Key(toVersion, fromVersion, hash)
-}
-
-func (ndb *nodeDB) rootKey(version int64) []byte {
-	return rootKeyFormat.Key(version)
 }
 
 func (ndb *nodeDB) getLatestVersion() int64 {
@@ -701,7 +618,7 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 	if checkLatestVersion && version == ndb.getLatestVersion() {
 		return errors.New("Tried to delete latest version")
 	}
-	if err := ndb.batch.Delete(ndb.rootKey(version)); err != nil {
+	if err := ndb.batch.Delete(getRootKey(version)); err != nil {
 		return err
 	}
 	return nil
@@ -709,17 +626,17 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 
 // Traverse orphans and return error if any, nil otherwise
 func (ndb *nodeDB) traverseOrphans(fn func(keyWithPrefix, v []byte) error) error {
-	return ndb.traversePrefix(orphanKeyFormat.Key(), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, orphanKeyFormat.Key(), fn)
 }
 
 // Traverse fast nodes and return error if any, nil otherwise
 func (ndb *nodeDB) traverseFastNodes(fn func(k, v []byte) error) error {
-	return ndb.traversePrefix(fastKeyFormat.Key(), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, fastKeyFormat.Key(), fn)
 }
 
 // Traverse orphans ending at a certain version. return error if any, nil otherwise
 func (ndb *nodeDB) traverseOrphansVersion(version int64, fn func(k, v []byte) error) error {
-	return ndb.traversePrefix(orphanKeyFormat.Key(version), fn)
+	return utils.IterateThroughAllSubtreeKeys(ndb.db, orphanKeyFormat.Key(version), fn)
 }
 
 // Traverse all keys and return error if any, nil otherwise
@@ -748,26 +665,9 @@ func (ndb *nodeDB) traverseRange(start []byte, end []byte, fn func(k, v []byte) 
 	return nil
 }
 
-// Traverse all keys with a certain prefix. Return error if any, nil otherwise
-func (ndb *nodeDB) traversePrefix(prefix []byte, fn func(k, v []byte) error) error {
-	itr, err := dbm.IteratePrefix(ndb.db, prefix)
-	if err != nil {
-		return err
-	}
-	defer itr.Close()
-
-	for ; itr.Valid(); itr.Next() {
-		if err := fn(itr.Key(), itr.Value()); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Get iterator for fast prefix and error, if any
 func (ndb *nodeDB) getFastIterator(start, end []byte, ascending bool) (dbm.Iterator, error) {
-	var startFormatted, endFormatted []byte = nil, nil
+	var startFormatted, endFormatted []byte
 
 	if start != nil {
 		startFormatted = fastKeyFormat.KeyBytes(start)
@@ -811,22 +711,26 @@ func (ndb *nodeDB) Commit() error {
 }
 
 func (ndb *nodeDB) HasRoot(version int64) (bool, error) {
-	return ndb.db.Has(ndb.rootKey(version))
+	return ndb.db.Has(getRootKey(version))
 }
 
 func (ndb *nodeDB) getRoot(version int64) ([]byte, error) {
-	return ndb.db.Get(ndb.rootKey(version))
+	return ndb.db.Get(getRootKey(version))
 }
 
+// TODO: Why does this method exist??
 func (ndb *nodeDB) getRoots() (map[int64][]byte, error) {
 	roots := map[int64][]byte{}
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(k, v []byte) error {
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(k, v []byte) error {
 		var version int64
 		rootKeyFormat.Scan(k, &version)
 		roots[version] = v
 		return nil
 	})
+	if err != nil {
+		return map[int64][]byte{}, nil
+	}
 	return roots, nil
 }
 
@@ -854,7 +758,7 @@ func (ndb *nodeDB) saveRoot(hash []byte, version int64) error {
 		return fmt.Errorf("must save consecutive versions; expected %d, got %d", latest+1, version)
 	}
 
-	if err := ndb.batch.Set(ndb.rootKey(version), hash); err != nil {
+	if err := ndb.batch.Set(getRootKey(version), hash); err != nil {
 		return err
 	}
 
@@ -877,81 +781,11 @@ func (ndb *nodeDB) decrVersionReaders(version int64) {
 	}
 }
 
-// Utility and test functions
-
-func (ndb *nodeDB) leafNodes() ([]*Node, error) {
-	leaves := []*Node{}
-
-	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
-		if node.isLeaf() {
-			leaves = append(leaves, node)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return leaves, nil
-}
-
-func (ndb *nodeDB) nodes() ([]*Node, error) {
-	nodes := []*Node{}
-
-	err := ndb.traverseNodes(func(hash []byte, node *Node) error {
-		nodes = append(nodes, node)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return nodes, nil
-}
-
-func (ndb *nodeDB) orphans() ([][]byte, error) {
-	orphans := [][]byte{}
-
-	err := ndb.traverseOrphans(func(k, v []byte) error {
-		orphans = append(orphans, v)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return orphans, nil
-}
-
-func (ndb *nodeDB) roots() map[int64][]byte {
-	roots, _ := ndb.getRoots()
-	return roots
-}
-
-// Not efficient.
-// NOTE: DB cannot implement Size() because
-// mutations are not always synchronous.
-func (ndb *nodeDB) size() int {
-	size := 0
-	err := ndb.traverse(func(k, v []byte) error {
-		size++
-		return nil
-	})
-
-	if err != nil {
-		return -1
-	}
-	return size
-}
-
 func (ndb *nodeDB) traverseNodes(fn func(hash []byte, node *Node) error) error {
 	nodes := []*Node{}
 
-	err := ndb.traversePrefix(nodeKeyFormat.Key(), func(key, value []byte) error {
-		node, err := MakeNode(value)
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, nodeKeyFormat.Key(), func(key, value []byte) error {
+		node, err := DeserializeNode(value)
 		if err != nil {
 			return err
 		}
@@ -980,13 +814,16 @@ func (ndb *nodeDB) String() (string, error) {
 	var str string
 	index := 0
 
-	ndb.traversePrefix(rootKeyFormat.Key(), func(key, value []byte) error {
+	err := utils.IterateThroughAllSubtreeKeys(ndb.db, rootKeyFormat.Key(), func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
 	str += "\n"
 
-	err := ndb.traverseOrphans(func(key, value []byte) error {
+	err = ndb.traverseOrphans(func(key, value []byte) error {
 		str += fmt.Sprintf("%s: %x\n", string(key), value)
 		return nil
 	})
@@ -1003,12 +840,12 @@ func (ndb *nodeDB) String() (string, error) {
 			str += "<nil>\n"
 		case node == nil:
 			str += fmt.Sprintf("%s%40x: <nil>\n", nodeKeyFormat.Prefix(), hash)
-		case node.value == nil && node.height > 0:
+		case node.value == nil && node.subtreeHeight > 0:
 			str += fmt.Sprintf("%s%40x: %s   %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, "", node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.key, "", node.subtreeHeight, node.version)
 		default:
 			str += fmt.Sprintf("%s%40x: %s = %-16s h=%d version=%d\n",
-				nodeKeyFormat.Prefix(), hash, node.key, node.value, node.height, node.version)
+				nodeKeyFormat.Prefix(), hash, node.key, node.value, node.subtreeHeight, node.version)
 		}
 		index++
 		return nil

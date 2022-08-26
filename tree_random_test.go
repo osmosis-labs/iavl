@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cosmos/iavl/types"
 	"github.com/stretchr/testify/require"
 
 	db "github.com/tendermint/tm-db"
@@ -422,7 +423,7 @@ func assertFastNodeCacheIsLive(t *testing.T, tree *MutableTree, mirror map[strin
 	for k, v := range mirror {
 		require.True(t, tree.ndb.fastNodeCache.Has([]byte(k)), "cached fast node must be in live tree")
 		mirrorNode := tree.ndb.fastNodeCache.Get([]byte(k))
-		require.Equal(t, []byte(v), mirrorNode.(*FastNode).value, "cached fast node's value must be equal to live state value")
+		require.Equal(t, []byte(v), mirrorNode.(*types.FastNode).GetValue(), "cached fast node's value must be equal to live state value")
 	}
 }
 
@@ -437,13 +438,13 @@ func assertFastNodeDiskIsLive(t *testing.T, tree *MutableTree, mirror map[string
 	err := tree.ndb.traverseFastNodes(func(keyWithPrefix, v []byte) error {
 		key := keyWithPrefix[1:]
 		count += 1
-		fastNode, err := DeserializeFastNode(key, v)
+		fastNode, err := types.DeserializeFastNode(key, v)
 		require.Nil(t, err)
 
-		mirrorVal := mirror[string(fastNode.key)]
+		mirrorVal := mirror[string(fastNode.GetKey())]
 
 		require.NotNil(t, mirrorVal)
-		require.Equal(t, []byte(mirrorVal), fastNode.value)
+		require.Equal(t, []byte(mirrorVal), fastNode.GetValue())
 		return nil
 	})
 	require.NoError(t, err)

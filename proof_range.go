@@ -433,7 +433,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 	var leafCount = 1 // from left above.
 	var pathCount = 0
 
-	t.root.traverseInRange(t, afterLeft, nil, true, false, false,
+	t.traverseInRange(t.root, afterLeft, nil, true, false, false,
 		func(node *Node) (stop bool) {
 
 			// Track when we diverge from path, or when we've exhausted path,
@@ -444,7 +444,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 					pathCount = -1
 				} else {
 					pn := path[pathCount]
-					if pn.Height != node.height ||
+					if pn.Height != node.subtreeHeight ||
 						pn.Left != nil && !bytes.Equal(pn.Left, node.leftHash) ||
 						pn.Right != nil && !bytes.Equal(pn.Right, node.rightHash) {
 
@@ -456,7 +456,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				}
 			}
 
-			if node.height == 0 { // Leaf node
+			if node.subtreeHeight == 0 { // Leaf node
 				// Append all paths that we tracked so far to get to this leaf node.
 				allPathToLeafs = append(allPathToLeafs, currentPathToLeaf)
 				// Start a new one to track as we traverse the tree.
@@ -499,7 +499,7 @@ func (t *ImmutableTree) getRangeProof(keyStart, keyEnd []byte, limit int) (proof
 				// and don't need to store unnecessary info as we only need to go down the right
 				// path.
 				currentPathToLeaf = append(currentPathToLeaf, ProofInnerNode{
-					Height:  node.height,
+					Height:  node.subtreeHeight,
 					Size:    node.size,
 					Version: node.version,
 					Left:    nil,

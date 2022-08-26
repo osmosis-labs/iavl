@@ -3,6 +3,16 @@
 
 ## Unreleased
 
+* [\#TBD](https://github.com/cosmos/iavl/pull/440) Shuffles a lot of the IAVL logic. The following moves to packages:
+  - keyformat.go & keyformat_test.go -> iavl/keyformat
+  - fastnode.go & fastnode_test.go -> iavl/types. Types package should encompass node.go as well.- 
+  - encoding.go & encoding_test.go -> iavl/utils
+  - Move fastnode migration code from nodedb.go & mutable_tree.go to fastnode_migration.go
+  - Move tree-based methods on node.go to immutable_tree.go
+  - Move keyformat definitions & getters from nodedb to keyformats.go
+  - Move testing-only nodedb methods to be in testutils_test.go
+  - Make helper methods to de-duplicate common iterator usage patterns within IAVL.
+
 ## 0.17.2 (November 13, 2021)
 
 ### Improvements
@@ -53,7 +63,7 @@ Special thanks to external contributors on this release: @odeke-em
 
 ### Bug Fixes
 
-- [\#347](https://github.com/cosmos/iavl/pull/347) Fix another integer overflow in `decodeBytes()` that can cause panics for certain inputs. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs since 0.15.0.
+- [\#347](https://github.com/cosmos/iavl/pull/347) Fix another integer overflow in `utils.DecodeBytes()` that can cause panics for certain inputs. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs since 0.15.0.
 
 - [\#349](https://github.com/cosmos/iavl/pull/349) Fix spurious blank lines in `PathToLeaf.String()`.
 
@@ -63,7 +73,7 @@ Special thanks to external contributors on this release: @odeke-em
 
 ### Bug Fixes
 
-- [\#340](https://github.com/cosmos/iavl/pull/340) Fix integer overflow in `decodeBytes()` that can cause panics on 64-bit systems and out-of-memory issues on 32-bit systems. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs. The bug was introduced in 0.15.0.
+- [\#340](https://github.com/cosmos/iavl/pull/340) Fix integer overflow in `utils.DecodeBytes()` that can cause panics on 64-bit systems and out-of-memory issues on 32-bit systems. The `ValueOp` and `AbsenceOp` proof decoders are vulnerable to this via malicious inputs. The bug was introduced in 0.15.0.
 
 ## 0.15.0 (November 23, 2020)
 

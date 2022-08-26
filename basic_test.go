@@ -168,7 +168,7 @@ func TestUnit(t *testing.T) {
 			t.Fatalf("Expected %v new hashes, got %v", hashCount, count)
 		}
 		// nuke hashes and reconstruct hash, ensure it's the same.
-		tree.root.traverse(tree, true, func(node *Node) bool {
+		tree.traverse(tree.root, true, func(node *Node) bool {
 			node.hash = nil
 			return false
 		})
@@ -525,4 +525,38 @@ func TestTreeProof(t *testing.T) {
 			assert.NoError(t, err, "#### %v", proof.String())
 		}
 	}
+}
+
+// sink is kept as a global to ensure that value checks and assignments to it can't be
+// optimized away, and this will help us ensure that benchmarks successfully run.
+var sink interface{}
+
+func BenchmarkConvertLeafOp(b *testing.B) {
+	var versions = []int64{
+		0,
+		1,
+		100,
+		127,
+		128,
+		1 << 29,
+		-0,
+		-1,
+		-100,
+		-127,
+		-128,
+		-1 << 29,
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for _, version := range versions {
+			sink = convertLeafOp(version)
+		}
+	}
+	if sink == nil {
+		b.Fatal("Benchmark wasn't run")
+	}
+	sink = nil
 }

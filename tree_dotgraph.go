@@ -45,7 +45,7 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 	ctx := &graphContext{}
 
 	tree.root.hashWithCount()
-	tree.root.traverse(tree, true, func(node *Node) bool {
+	tree.traverse(tree.root, true, func(node *Node) bool {
 		graphNode := &graphNode{
 			Attrs: map[string]string{},
 			Hash:  fmt.Sprintf("%x", node.hash),
@@ -63,7 +63,7 @@ func WriteDOTGraph(w io.Writer, tree *ImmutableTree, paths []PathToLeaf) {
 			graphNode.Label += mkLabel(string(node.value), 10, "sans-serif")
 		}
 
-		if node.height == 0 {
+		if node.subtreeHeight == 0 {
 			graphNode.Attrs["fillcolor"] = "lightgrey"
 			graphNode.Attrs["style"] = "filled"
 		}

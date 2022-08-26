@@ -1,14 +1,24 @@
-package iavl
+package types
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestFastNode_encodedSize(t *testing.T) {
+func randBytes(length int) []byte {
+	key := make([]byte, length)
+	// math.rand.Read always returns err=nil
+	// we do not need cryptographic randomness for this test:
+	//nolint:gosec
+	rand.Read(key)
+	return key
+}
+
+func TestFastNode_EncodedSize(t *testing.T) {
 	fastNode := &FastNode{
 		key:                  randBytes(10),
 		versionLastUpdatedAt: 1,
@@ -17,7 +27,7 @@ func TestFastNode_encodedSize(t *testing.T) {
 
 	expectedSize := 1 + len(fastNode.value) + 1
 
-	require.Equal(t, expectedSize, fastNode.encodedSize())
+	require.Equal(t, expectedSize, fastNode.EncodedSize())
 }
 
 func TestFastNode_encode_decode(t *testing.T) {
@@ -38,7 +48,7 @@ func TestFastNode_encode_decode(t *testing.T) {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
-			err := tc.node.writeBytes(&buf)
+			err := tc.node.WriteBytes(&buf)
 			if tc.expectError {
 				require.Error(t, err)
 				return

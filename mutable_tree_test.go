@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/iavl/mock"
+	"github.com/cosmos/iavl/utils"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,7 @@ func TestDelete(t *testing.T) {
 	k1Value, _, _ := tree.GetVersionedWithProof([]byte("k1"), version)
 	require.Nil(t, k1Value)
 
-	key := tree.ndb.rootKey(version)
+	key := getRootKey(version)
 	err = memDB.Set(key, hash)
 	require.NoError(t, err)
 	tree.versions[version] = true
@@ -405,9 +406,9 @@ func TestMutableTree_SetSimple(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 }
 
 func TestMutableTree_SetTwoKeys(t *testing.T) {
@@ -441,14 +442,14 @@ func TestMutableTree_SetTwoKeys(t *testing.T) {
 	require.Equal(t, 2, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 
 	fastNodeAddition = fastNodeAdditions[testKey2]
-	require.Equal(t, []byte(testKey2), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey2), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal2), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 }
 
 func TestMutableTree_SetOverwrite(t *testing.T) {
@@ -475,9 +476,9 @@ func TestMutableTree_SetOverwrite(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal2), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal2), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 }
 
 func TestMutableTree_SetRemoveSet(t *testing.T) {
@@ -501,9 +502,9 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition := fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 
 	// Remove
 	removedVal, isRemoved := tree.Remove([]byte(testKey1))
@@ -534,9 +535,9 @@ func TestMutableTree_SetRemoveSet(t *testing.T) {
 	require.Equal(t, 1, len(fastNodeAdditions))
 
 	fastNodeAddition = fastNodeAdditions[testKey1]
-	require.Equal(t, []byte(testKey1), fastNodeAddition.key)
-	require.Equal(t, []byte(testVal1), fastNodeAddition.value)
-	require.Equal(t, int64(1), fastNodeAddition.versionLastUpdatedAt)
+	require.Equal(t, []byte(testKey1), fastNodeAddition.GetKey())
+	require.Equal(t, []byte(testVal1), fastNodeAddition.GetValue())
+	require.Equal(t, int64(1), fastNodeAddition.GetVersionLastUpdatedAt())
 
 	fastNodeRemovals = tree.getUnsavedFastNodeRemovals()
 	require.Equal(t, 0, len(fastNodeRemovals))
@@ -865,10 +866,10 @@ func TestFastStorageReUpgradeProtection_ForceUpgradeFirstTime_NoForceSecondTime_
 	// encode value
 	var buf bytes.Buffer
 	testValue := "test_value"
-	buf.Grow(encodeVarintSize(int64(latestFastStorageVersionOnDisk)) + encodeBytesSize([]byte(testValue)))
-	err := encodeVarint(&buf, int64(latestFastStorageVersionOnDisk))
+	buf.Grow(utils.EncodeVarintSize(int64(latestFastStorageVersionOnDisk)) + utils.EncodeBytesSize([]byte(testValue)))
+	err := utils.EncodeVarint(&buf, int64(latestFastStorageVersionOnDisk))
 	require.NoError(t, err)
-	err = encodeBytes(&buf, []byte(testValue))
+	err = utils.EncodeBytes(&buf, []byte(testValue))
 	require.NoError(t, err)
 	iterMock.EXPECT().Value().Return(buf.Bytes()).Times(1) // this is encoded as version 1 with value "2"
 	iterMock.EXPECT().Valid().Return(true).Times(1)

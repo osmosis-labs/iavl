@@ -89,8 +89,8 @@ func (t *ImmutableTree) renderNode(node *Node, indent string, depth int, encoder
 
 	// recurse on inner node
 	here := fmt.Sprintf("%s%s", prefix, encoder(node.hash, depth, false))
-	left := t.renderNode(node.getLeftNode(t), indent, depth+1, encoder)
-	right := t.renderNode(node.getRightNode(t), indent, depth+1, encoder)
+	left := t.renderNode(t.getLeftChild(node), indent, depth+1, encoder)
+	right := t.renderNode(t.getRightChild(node), indent, depth+1, encoder)
 	result := append(left, here)
 	result = append(result, right...)
 	return result
@@ -109,12 +109,12 @@ func (t *ImmutableTree) Version() int64 {
 	return t.version
 }
 
-// Height returns the height of the tree.
+// Height returns the depth of the tree.
 func (t *ImmutableTree) Height() int8 {
 	if t.root == nil {
 		return 0
 	}
-	return t.root.height
+	return t.root.subtreeHeight
 }
 
 // Has returns whether or not a key exists.
@@ -187,13 +187,13 @@ func (t *ImmutableTree) Get(key []byte) []byte {
 	}
 
 	// cache node was updated later than the current tree. Use regular strategy for reading from the current tree
-	if fastNode.versionLastUpdatedAt > t.version {
-		debug("last updated version %d is too new for FastNode where tree is of version %d with key %X, falling back to regular IAVL logic\n", fastNode.versionLastUpdatedAt, t.version, key)
+	if fastNode.GetVersionLastUpdatedAt() > t.version {
+		debug("last updated version %d is too new for FastNode where tree is of version %d with key %X, falling back to regular IAVL logic\n", fastNode.GetVersionLastUpdatedAt(), t.version, key)
 		_, result := t.root.get(t, key)
 		return result
 	}
 
-	return fastNode.value
+	return fastNode.GetValue()
 }
 
 // GetByIndex gets the key and value at the specified index.
@@ -202,7 +202,7 @@ func (t *ImmutableTree) GetByIndex(index int64) (key []byte, value []byte) {
 		return nil, nil
 	}
 
-	return t.root.getByIndex(t, index)
+	return t.getByIndexRecursive(t.root, index)
 }
 
 // Iterate iterates over all keys of the tree. The keys and values must not be modified,
@@ -239,8 +239,8 @@ func (t *ImmutableTree) IterateRange(start, end []byte, ascending bool, fn func(
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, false, false, func(node *Node) bool {
-		if node.height == 0 {
+	return t.traverseInRange(t.root, start, end, ascending, false, false, func(node *Node) bool {
+		if node.subtreeHeight == 0 {
 			return fn(node.key, node.value)
 		}
 		return false
@@ -254,8 +254,8 @@ func (t *ImmutableTree) IterateRangeInclusive(start, end []byte, ascending bool,
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverseInRange(t, start, end, ascending, true, false, func(node *Node) bool {
-		if node.height == 0 {
+	return t.traverseInRange(t.root, start, end, ascending, true, false, func(node *Node) bool {
+		if node.subtreeHeight == 0 {
 			return fn(node.key, node.value, node.version)
 		}
 		return false
@@ -287,9 +287,76 @@ func (t *ImmutableTree) clone() *ImmutableTree {
 // nodeSize is like Size, but includes inner nodes too.
 func (t *ImmutableTree) nodeSize() int {
 	size := 0
-	t.root.traverse(t, true, func(n *Node) bool {
+	t.traverse(t.root, true, func(n *Node) bool {
 		size++
 		return false
 	})
 	return size
+}
+
+func (t *ImmutableTree) getLeftChild(node *Node) *Node {
+	if node.leftNode != nil {
+		return node.leftNode
+	}
+	return t.ndb.GetNode(node.leftHash)
+}
+
+func (t *ImmutableTree) getRightChild(node *Node) *Node {
+	if node.rightNode != nil {
+		return node.rightNode
+	}
+	return t.ndb.GetNode(node.rightHash)
+}
+
+func (t *ImmutableTree) getByIndexRecursive(node *Node, index int64) (key []byte, value []byte) {
+	if node.isLeaf() {
+		if index == 0 {
+			return node.key, node.value
+		}
+		return nil, nil
+	}
+	// TODO: could improve this by storing the
+	// sizes as well as left/right hash.
+	leftNode := t.getLeftChild(node)
+
+	if index < leftNode.size {
+		return t.getByIndexRecursive(leftNode, index)
+	}
+	return t.getByIndexRecursive(t.getRightChild(node), index-leftNode.size)
+}
+
+func (t *ImmutableTree) calcBalance(node *Node) int {
+	return int(t.getLeftChild(node).subtreeHeight) - int(t.getRightChild(node).subtreeHeight)
+}
+
+// NOTE: mutates depth and size
+func (t *ImmutableTree) setDepthAndSize(node *Node) {
+	node.subtreeHeight = maxInt8(t.getLeftChild(node).subtreeHeight, t.getRightChild(node).subtreeHeight) + 1
+	node.size = t.getLeftChild(node).size + t.getRightChild(node).size
+}
+
+// traverse is a wrapper over traverseInRange when we want the whole tree
+func (t *ImmutableTree) traverse(node *Node, ascending bool, cb func(*Node) bool) bool {
+	return t.traverseInRange(node, nil, nil, ascending, false, false, func(node *Node) bool {
+		return cb(node)
+	})
+}
+
+// traversePost is a wrapper over traverseInRange when we want the whole tree post-order
+func (t *ImmutableTree) traversePost(node *Node, ascending bool, cb func(*Node) bool) bool {
+	return t.traverseInRange(node, nil, nil, ascending, false, true, func(node *Node) bool {
+		return cb(node)
+	})
+}
+
+func (t *ImmutableTree) traverseInRange(node *Node, start, end []byte, ascending bool, inclusive bool, post bool, cb func(*Node) bool) bool {
+	stop := false
+	trav := t.newTraversal(node, start, end, ascending, inclusive, post)
+	for node2 := trav.next(); node2 != nil; node2 = trav.next() {
+		stop = cb(node2)
+		if stop {
+			return stop
+		}
+	}
+	return stop
 }

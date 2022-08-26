@@ -21,7 +21,7 @@ type traversal struct {
 
 var errIteratorNilTreeGiven = errors.New("iterator must be created with an immutable tree but the tree was nil")
 
-func (node *Node) newTraversal(tree *ImmutableTree, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
+func (tree *ImmutableTree) newTraversal(node *Node, start, end []byte, ascending bool, inclusive bool, post bool) *traversal {
 	return &traversal{
 		tree:         tree,
 		start:        start,
@@ -122,22 +122,22 @@ func (t *traversal) next() *Node {
 		if t.ascending {
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getRightChild(node), true)
 			}
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getLeftChild(node), true)
 			}
 		} else {
 			// if node is a branch node and the order is not ascending
 			// We traverse through the right subtree, then the left subtree.
 			if afterStart {
 				// push the delayed traversal for the left nodes,
-				t.delayedNodes.push(node.getLeftNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getLeftChild(node), true)
 			}
 			if beforeEnd {
 				// push the delayed traversal for the right nodes,
-				t.delayedNodes.push(node.getRightNode(t.tree), true)
+				t.delayedNodes.push(t.tree.getRightChild(node), true)
 			}
 		}
 	}
@@ -177,7 +177,7 @@ func NewIterator(start, end []byte, ascending bool, tree *ImmutableTree) dbm.Ite
 	}
 
 	if iter.valid {
-		iter.t = tree.root.newTraversal(tree, start, end, ascending, false, false)
+		iter.t = tree.newTraversal(tree.root, start, end, ascending, false, false)
 		// Move iterator before the first element
 		iter.Next()
 	} else {
@@ -220,7 +220,7 @@ func (iter *Iterator) Next() {
 		return
 	}
 
-	if node.height == 0 {
+	if node.subtreeHeight == 0 {
 		iter.key, iter.value = node.key, node.value
 		return
 	}

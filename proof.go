@@ -10,6 +10,7 @@ import (
 
 	cmn "github.com/cosmos/iavl/common"
 	iavlproto "github.com/cosmos/iavl/proto"
+	"github.com/cosmos/iavl/utils"
 )
 
 var (
@@ -57,27 +58,27 @@ func (pin ProofInnerNode) Hash(childHash []byte) []byte {
 	hasher := sha256.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, int64(pin.Height))
+	err := utils.EncodeVarint(buf, int64(pin.Height))
 	if err == nil {
-		err = encodeVarint(buf, pin.Size)
+		err = utils.EncodeVarint(buf, pin.Size)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pin.Version)
+		err = utils.EncodeVarint(buf, pin.Version)
 	}
 
 	if len(pin.Left) == 0 {
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = utils.EncodeBytes(buf, childHash)
 		}
 		if err == nil {
-			err = encodeBytes(buf, pin.Right)
+			err = utils.EncodeBytes(buf, pin.Right)
 		}
 	} else {
 		if err == nil {
-			err = encodeBytes(buf, pin.Left)
+			err = utils.EncodeBytes(buf, pin.Left)
 		}
 		if err == nil {
-			err = encodeBytes(buf, childHash)
+			err = utils.EncodeBytes(buf, childHash)
 		}
 	}
 	if err != nil {
@@ -147,18 +148,18 @@ func (pln ProofLeafNode) Hash() []byte {
 	hasher := sha256.New()
 	buf := new(bytes.Buffer)
 
-	err := encodeVarint(buf, 0)
+	err := utils.EncodeVarint(buf, 0)
 	if err == nil {
-		err = encodeVarint(buf, 1)
+		err = utils.EncodeVarint(buf, 1)
 	}
 	if err == nil {
-		err = encodeVarint(buf, pln.Version)
+		err = utils.EncodeVarint(buf, pln.Version)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.Key)
+		err = utils.EncodeBytes(buf, pln.Key)
 	}
 	if err == nil {
-		err = encodeBytes(buf, pln.ValueHash)
+		err = utils.EncodeBytes(buf, pln.ValueHash)
 	}
 	if err != nil {
 		panic(fmt.Sprintf("Failed to hash ProofLeafNode: %v", err))
@@ -200,15 +201,15 @@ func proofLeafNodeFromProto(pbLeaf *iavlproto.ProofLeafNode) (ProofLeafNode, err
 // a path to the least item.
 func (node *Node) PathToLeaf(t *ImmutableTree, key []byte) (PathToLeaf, *Node, error) {
 	path := new(PathToLeaf)
-	val, err := node.pathToLeaf(t, key, path)
+	val, err := node.pathToLeafRecursive(t, key, path)
 	return *path, val, err
 }
 
 // pathToLeaf is a helper which recursively constructs the PathToLeaf.
 // As an optimization the already constructed path is passed in as an argument
 // and is shared among recursive calls.
-func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
-	if node.height == 0 {
+func (node *Node) pathToLeafRecursive(t *ImmutableTree, key []byte, path *PathToLeaf) (*Node, error) {
+	if node.subtreeHeight == 0 {
 		if bytes.Equal(node.key, key) {
 			return node, nil
 		}
@@ -222,25 +223,25 @@ func (node *Node) pathToLeaf(t *ImmutableTree, key []byte, path *PathToLeaf) (*N
 	if bytes.Compare(key, node.key) < 0 {
 		// left side
 		pin := ProofInnerNode{
-			Height:  node.height,
+			Height:  node.subtreeHeight,
 			Size:    node.size,
 			Version: node.version,
 			Left:    nil,
-			Right:   node.getRightNode(t).hash,
+			Right:   t.getRightChild(node).hash,
 		}
 		*path = append(*path, pin)
-		n, err := node.getLeftNode(t).pathToLeaf(t, key, path)
+		n, err := t.getLeftChild(node).pathToLeafRecursive(t, key, path)
 		return n, err
 	}
 	// right side
 	pin := ProofInnerNode{
-		Height:  node.height,
+		Height:  node.subtreeHeight,
 		Size:    node.size,
 		Version: node.version,
-		Left:    node.getLeftNode(t).hash,
+		Left:    t.getLeftChild(node).hash,
 		Right:   nil,
 	}
 	*path = append(*path, pin)
-	n, err := node.getRightNode(t).pathToLeaf(t, key, path)
+	n, err := t.getRightChild(node).pathToLeafRecursive(t, key, path)
 	return n, err
 }
