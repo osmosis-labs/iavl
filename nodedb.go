@@ -73,6 +73,7 @@ type nodeDB struct {
 	mtx            sync.Mutex       // Read/write lock.
 	db             dbm.DB           // Persistent node storage.
 	batch          dbm.Batch        // Batched writing buffer.
+	batchSize      int              // Batch size.
 	opts           Options          // Options to customize for pruning/writing
 	versionReaders map[int64]uint32 // Number of active version readers
 	storageVersion string           // Storage version
@@ -96,6 +97,7 @@ func newNodeDB(db dbm.DB, cacheSize int, opts *Options) *nodeDB {
 	return &nodeDB{
 		db:             db,
 		batch:          db.NewBatch(),
+		batchSize:      0,
 		opts:           *opts,
 		latestVersion:  0, // initially invalid
 		nodeCache:      cache.New(cacheSize),
@@ -204,6 +206,7 @@ func (ndb *nodeDB) SaveNode(node *Node) error {
 	if err := ndb.batch.Set(ndb.nodeKey(node.hash), buf.Bytes()); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 	logger.Debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
 	ndb.nodeCache.Add(node)
@@ -252,6 +255,7 @@ func (ndb *nodeDB) setFastStorageVersionToBatch() error {
 	if err := ndb.batch.Set(metadataKeyFormat.Key([]byte(storageVersionKey)), []byte(newVersion)); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 	ndb.storageVersion = newVersion
 	return nil
 }
@@ -302,6 +306,7 @@ func (ndb *nodeDB) saveFastNodeUnlocked(node *FastNode, shouldAddToCache bool) e
 	if err := ndb.batch.Set(ndb.fastNodeKey(node.key), buf.Bytes()); err != nil {
 		return fmt.Errorf("error while writing key/val to nodedb batch. Err: %w", err)
 	}
+	ndb.batchSize += 1
 	if shouldAddToCache {
 		ndb.fastNodeCache.Add(node)
 	}
@@ -377,21 +382,24 @@ func (ndb *nodeDB) SaveBranch(node *Node) ([]byte, error) {
 
 // resetBatch reset the db batch, keep low memory used
 func (ndb *nodeDB) resetBatch() error {
-	var err error
-	if ndb.opts.Sync {
-		err = ndb.batch.WriteSync()
-	} else {
-		err = ndb.batch.Write()
-	}
-	if err != nil {
-		return err
-	}
-	err = ndb.batch.Close()
-	if err != nil {
-		return err
-	}
+	// only write batch once its sufficiently sized
+	if ndb.batchSize >= 512 {
+		var err error
+		if ndb.opts.Sync {
+			err = ndb.batch.WriteSync()
+		} else {
+			err = ndb.batch.Write()
+		}
+		if err != nil {
+			return err
+		}
+		err = ndb.batch.Close()
+		if err != nil {
+			return err
+		}
 
-	ndb.batch = ndb.db.NewBatch()
+		ndb.batch = ndb.db.NewBatch()
+	}
 
 	return nil
 }
@@ -462,9 +470,11 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
+			ndb.batchSize += 2
 			ndb.nodeCache.Remove(hash)
 		} else if toVersion >= version-1 {
 			if err = ndb.batch.Delete(key); err != nil {
+				ndb.batchSize += 1
 				return err
 			}
 		}
@@ -480,6 +490,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 		if err = ndb.batch.Delete(k); err != nil {
 			return err
 		}
+		ndb.batchSize += 1
 		return nil
 	})
 
@@ -500,6 +511,7 @@ func (ndb *nodeDB) DeleteVersionsFrom(version int64) error {
 			if err = ndb.batch.Delete(keyWithPrefix); err != nil {
 				return err
 			}
+			ndb.batchSize += 1
 			ndb.fastNodeCache.Remove(key)
 		}
 		return nil
@@ -556,6 +568,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 				if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 					return err
 				}
+				ndb.batchSize += 1
 				ndb.nodeCache.Remove(hash)
 			} else {
 				if err := ndb.saveOrphan(hash, from, predecessor); err != nil {
@@ -574,6 +587,7 @@ func (ndb *nodeDB) DeleteVersionsRange(fromVersion, toVersion int64) error {
 		if err := ndb.batch.Delete(k); err != nil {
 			return err
 		}
+		ndb.batchSize += 1
 		return nil
 	})
 
@@ -589,6 +603,7 @@ func (ndb *nodeDB) DeleteFastNode(key []byte) error {
 	if err := ndb.batch.Delete(ndb.fastNodeKey(key)); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 	ndb.fastNodeCache.Remove(key)
 	return nil
 }
@@ -620,6 +635,7 @@ func (ndb *nodeDB) deleteNodesFrom(version int64, hash []byte) error {
 		if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 			return err
 		}
+		ndb.batchSize += 1
 
 		ndb.nodeCache.Remove(hash)
 	}
@@ -658,6 +674,7 @@ func (ndb *nodeDB) saveOrphan(hash []byte, fromVersion, toVersion int64) error {
 	if err := ndb.batch.Set(key, hash); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 	return nil
 }
 
@@ -683,6 +700,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 		if err := ndb.batch.Delete(key); err != nil {
 			return err
 		}
+		ndb.batchSize += 1
 
 		// If there is no predecessor, or the predecessor is earlier than the
 		// beginning of the lifetime (ie: negative lifetime), or the lifetime
@@ -694,6 +712,7 @@ func (ndb *nodeDB) deleteOrphans(version int64) error {
 			if err := ndb.batch.Delete(ndb.nodeKey(hash)); err != nil {
 				return err
 			}
+			ndb.batchSize += 1
 			ndb.nodeCache.Remove(hash)
 		} else {
 			logger.Debug("MOVE predecessor:%v fromVersion:%v toVersion:%v %X\n", predecessor, fromVersion, toVersion, hash)
@@ -777,6 +796,7 @@ func (ndb *nodeDB) deleteRoot(version int64, checkLatestVersion bool) error {
 	if err := ndb.batch.Delete(ndb.rootKey(version)); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 	return nil
 }
 
@@ -880,6 +900,7 @@ func (ndb *nodeDB) Commit() error {
 
 	ndb.batch.Close()
 	ndb.batch = ndb.db.NewBatch()
+	ndb.batchSize = 0
 
 	return nil
 }
@@ -933,6 +954,7 @@ func (ndb *nodeDB) saveRoot(hash []byte, version int64) error {
 	if err := ndb.batch.Set(ndb.rootKey(version), hash); err != nil {
 		return err
 	}
+	ndb.batchSize += 1
 
 	ndb.updateLatestVersion(version)
 
@@ -1008,6 +1030,7 @@ func (ndb *nodeDB) orphans() ([][]byte, error) {
 // Not efficient.
 // NOTE: DB cannot implement Size() because
 // mutations are not always synchronous.
+//
 //nolint:unused
 func (ndb *nodeDB) size() int {
 	size := 0
