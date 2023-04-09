@@ -209,7 +209,7 @@ func (ndb *nodeDB) SaveNode(node *Node) error {
 	ndb.batchSize += 1
 	logger.Debug("BATCH SAVE %X %p\n", node.hash, node)
 	node.persisted = true
-	ndb.nodeCache.Add(node)
+
 	return nil
 }
 
