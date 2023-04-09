@@ -399,6 +399,7 @@ func (ndb *nodeDB) resetBatch() error {
 		}
 
 		ndb.batch = ndb.db.NewBatch()
+		ndb.batchSize = 0
 	}
 
 	return nil
