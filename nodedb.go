@@ -330,10 +330,32 @@ func (ndb *nodeDB) Has(nk []byte) (bool, error) {
 	return ndb.db.Has(ndb.nodeKey(nk))
 }
 
+type rootkeyCache struct {
+	version int64
+	rootKey []byte
+}
+
+func (rkc *rootkeyCache) getRootKey(ndb *nodeDB, version int64) ([]byte, error) {
+	if rkc.version == version {
+		return rkc.rootKey, nil
+	}
+	rootKey, err := ndb.GetRoot(version)
+	if err != nil {
+		return nil, err
+	}
+	rkc.setRootKey(version, rootKey)
+	return rootKey, nil
+}
+
+func (rkc *rootkeyCache) setRootKey(version int64, rootKey []byte) {
+	rkc.version = version
+	rkc.rootKey = rootKey
+}
+
 // deleteVersion deletes a tree version from disk.
 // deletes orphans
-func (ndb *nodeDB) deleteVersion(version int64) error {
-	rootKey, err := ndb.GetRoot(version)
+func (ndb *nodeDB) deleteVersion(version int64, cache *rootkeyCache) error {
+	rootKey, err := cache.getRootKey(ndb, version)
 	if err != nil {
 		return err
 	}
@@ -371,7 +393,7 @@ func (ndb *nodeDB) deleteVersion(version int64) error {
 	}
 
 	// check if the version is referred by the next version
-	nextRootKey, err := ndb.GetRoot(version + 1)
+	nextRootKey, err := cache.getRootKey(ndb, version+1)
 	if err != nil {
 		return err
 	}
@@ -571,8 +593,9 @@ func (ndb *nodeDB) DeleteVersionsTo(toVersion int64) error {
 		first = legacyLatestVersion + 1
 	}
 
+	rootkeyCache := &rootkeyCache{}
 	for version := first; version <= toVersion; version++ {
-		if err := ndb.deleteVersion(version); err != nil {
+		if err := ndb.deleteVersion(version, rootkeyCache); err != nil {
 			return err
 		}
 		ndb.resetFirstVersion(version + 1)
