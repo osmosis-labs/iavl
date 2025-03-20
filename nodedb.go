@@ -698,7 +698,6 @@ func (ndb *nodeDB) deleteVersionsTo(toVersion int64) error {
 			}
 
 			ndb.logger.Error("Error while pruning, moving on the the next version in the store", "version missing", version, "next version", version+1, "err", err)
-			ndb.resetFirstVersion(version + 1)
 		}
 		ndb.resetFirstVersion(version + 1)
 	}
