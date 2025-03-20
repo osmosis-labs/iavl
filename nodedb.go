@@ -637,8 +637,8 @@ func (ndb *nodeDB) startPruning() {
 			}
 
 			if err := ndb.deleteVersionsTo(toVersion); err != nil {
-				ndb.logger.Error("Error while pruning", "err", err)
-				time.Sleep(1 * time.Second)
+				ndb.logger.Error("Error while pruning full store asynchronously", "version to prune to", toVersion, "err", err)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
@@ -711,7 +711,12 @@ func (ndb *nodeDB) deleteVersionsTo(toVersion int64) error {
 	rootkeyCache := &rootkeyCache{}
 	for version := first; version <= toVersion; version++ {
 		if err := ndb.deleteVersion(version, rootkeyCache); err != nil {
-			return err
+			// If the version is not found in the store continue on to the next version available
+			if err != ErrVersionDoesNotExist {
+				return err
+			}
+
+			ndb.logger.Error("Error while pruning, moving on the the next version in the store", "version missing", version, "next version", version+1, "err", err)
 		}
 		ndb.resetFirstVersion(version + 1)
 	}
