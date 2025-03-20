@@ -653,7 +653,11 @@ func (ndb *nodeDB) startPruning() {
 
 // DeleteVersionsTo deletes the oldest versions up to the given version from disk.
 func (ndb *nodeDB) DeleteVersionsTo(toVersion int64) error {
-	if !ndb.opts.AsyncPruning {
+	// DO NOT MERGE: if this is in a tagged version something has gone wrong and this should be
+	// reverted
+	// This is to force pruning synchronously for a specific `cosmprund` use case
+	// ideally this is abstracted away to be easily passed in as a option
+	if true {
 		return ndb.deleteVersionsTo(toVersion)
 	}
 
