@@ -442,31 +442,37 @@ func (rkc *rootkeyCache) setRootKey(version int64, rootKey []byte) {
 // deletes orphans
 func (ndb *nodeDB) deleteVersion(version int64, cache *rootkeyCache) error {
 	rootKey, err := cache.getRootKey(ndb, version)
-	if err != nil {
+	if err != nil && err != ErrVersionDoesNotExist {
 		return err
 	}
 
-	if err := ndb.traverseOrphans(version, version+1, func(orphan *Node) error {
-		if orphan.nodeKey.nonce == 0 && !orphan.isLegacy {
-			// if the orphan is a reformatted root, it can be a legacy root
-			// so it should be removed from the pruning process.
-			if err := ndb.deleteFromPruning(ndb.legacyNodeKey(orphan.hash)); err != nil {
-				return err
+	if err == ErrVersionDoesNotExist {
+		ndb.logger.Error("Error while pruning, moving on the the next version in the store", "version missing", version, "next version", version+1, "err", err)
+	}
+
+	if rootKey != nil {
+		if err := ndb.traverseOrphans(version, version+1, func(orphan *Node) error {
+			if orphan.nodeKey.nonce == 0 && !orphan.isLegacy {
+				// if the orphan is a reformatted root, it can be a legacy root
+				// so it should be removed from the pruning process.
+				if err := ndb.deleteFromPruning(ndb.legacyNodeKey(orphan.hash)); err != nil {
+					return err
+				}
 			}
+			if orphan.nodeKey.nonce == 1 && orphan.nodeKey.version < version {
+				// if the orphan is referred to the previous root, it should be reformatted
+				// to (version, 0), because the root (version, 1) should be removed but not
+				// applied now due to the batch writing.
+				orphan.nodeKey.nonce = 0
+			}
+			nk := orphan.GetKey()
+			if orphan.isLegacy {
+				return ndb.deleteFromPruning(ndb.legacyNodeKey(nk))
+			}
+			return ndb.deleteFromPruning(ndb.nodeKey(nk))
+		}); err != nil && err != ErrVersionDoesNotExist {
+			return err
 		}
-		if orphan.nodeKey.nonce == 1 && orphan.nodeKey.version < version {
-			// if the orphan is referred to the previous root, it should be reformatted
-			// to (version, 0), because the root (version, 1) should be removed but not
-			// applied now due to the batch writing.
-			orphan.nodeKey.nonce = 0
-		}
-		nk := orphan.GetKey()
-		if orphan.isLegacy {
-			return ndb.deleteFromPruning(ndb.legacyNodeKey(nk))
-		}
-		return ndb.deleteFromPruning(ndb.nodeKey(nk))
-	}); err != nil {
-		return err
 	}
 
 	literalRootKey := GetRootKey(version)
@@ -480,7 +486,7 @@ func (ndb *nodeDB) deleteVersion(version int64, cache *rootkeyCache) error {
 
 	// check if the version is referred by the next version
 	nextRootKey, err := cache.getRootKey(ndb, version+1)
-	if err != nil {
+	if err != nil && err != ErrVersionDoesNotExist {
 		return err
 	}
 	if bytes.Equal(literalRootKey, nextRootKey) {
@@ -704,6 +710,7 @@ func (ndb *nodeDB) deleteVersionsTo(toVersion int64) error {
 			ndb.logger.Error("Error deleting legacy versions", "err", err)
 		}
 		first = legacyLatestVersion + 1
+
 		// reset the legacy latest version forcibly to avoid multiple calls
 		ndb.resetLegacyLatestVersion(-1)
 	}
