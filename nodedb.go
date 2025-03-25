@@ -659,7 +659,7 @@ func (ndb *nodeDB) startPruning() {
 
 // DeleteVersionsTo deletes the oldest versions up to the given version from disk.
 func (ndb *nodeDB) DeleteVersionsTo(toVersion int64) error {
-	if !ndb.opts.AsyncPruning {
+	if true {
 		return ndb.deleteVersionsTo(toVersion)
 	}
 
